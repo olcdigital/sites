@@ -1,0 +1,40 @@
+{% extends "admin_base.html" %}
+{% set active = "settings" %}
+{% block title %}Opponents{% endblock %}
+{% block heading %}Opponents{% endblock %}
+{% block subheading %}Picked from this list when scheduling a game — not typed freeform, so historical/series records stay accurate{% endblock %}
+{% block content %}
+<a href="/admin/settings" style="font-size:12.5px; font-weight:600;">&larr; All Settings</a>
+<div class="card" style="max-width:560px; margin-top:14px;">
+  <h2 style="font-size:14px; margin-top:0;">Add an opponent</h2>
+  <form method="POST" action="/admin/opponents/new">
+    <div class="field"><label>Name</label><input type="text" name="name" required placeholder="e.g. Ridgeview College"></div>
+    <div class="form-row">
+      <div class="field"><label>City</label><input type="text" name="city" placeholder="e.g. Ridgeview"></div>
+      <div class="field"><label>State</label><input type="text" name="state" placeholder="e.g. CA"></div>
+    </div>
+    <div class="field"><label>Website URL (optional)</label><input type="text" name="website_url" placeholder="https://..."></div>
+    <div class="field"><label>Logo URL (optional)</label><input type="text" name="logo_url" placeholder="https://..."></div>
+    <button class="btn" type="submit">+ Add Opponent</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="font-size:14px; margin-top:0;">All opponents ({{ opponents|length }})</h2>
+  <table>
+    <thead><tr><th>Name</th><th>Location</th><th>Website</th><th>Logo</th></tr></thead>
+    <tbody>
+      {% for o in opponents %}
+      <tr>
+        <td>{{ o['name'] }}</td>
+        <td>{{ (o['city'] ~ ', ' ~ o['state']) if o['city'] else '—' }}</td>
+        <td>{{ o['website_url'] or '—' }}</td>
+        <td>{{ o['logo_url'] or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">No opponents yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

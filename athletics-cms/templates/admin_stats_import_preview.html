@@ -1,0 +1,100 @@
+{% extends "admin_base.html" %}
+{% set active = "schedule" %}
+{% block title %}Confirm Stats Import{% endblock %}
+{% block heading %}Confirm Stats Import{% endblock %}
+{% block subheading %}{{ team['name'] }} vs. {{ game['opponent_display_name'] or game['opponent_name'] }} &middot; {{ game['date'] }}{% endblock %}
+{% block content %}
+<a href="/admin/schedule/{{ game['id'] }}/stats/import" style="font-size:12.5px; font-weight:600;">&larr; Back to Import</a>
+
+<div class="callout" style="margin-top:14px;">
+  Parsed successfully. Nothing has been saved yet — review below, then Confirm &amp; Publish. Live Scoring for {{ team['name'] }} is set to <b>Confirm Before Publishing</b>, so every import stops here first; switch it to Publish Automatically in Schedule Settings to skip this step next time.
+</div>
+
+<div class="card" style="max-width:640px;">
+  <div class="form-row">
+    <div class="field">
+      <label>Feed reports status</label>
+      <div>{{ parsed['status']|capitalize if parsed['status'] else 'Not specified — game status left unchanged' }}</div>
+    </div>
+    <div class="field">
+      <label>Feed reports score</label>
+      <div>
+        {% if parsed['score_for'] is not none and parsed['score_against'] is not none %}
+        {{ school['mascot'] or school['name'] }} {{ parsed['score_for'] }} &ndash; {{ parsed['score_against'] }} Opponent
+        {% else %}
+        Not specified
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% if game['score_finalized_by'] == 'manual_entry' %}
+  <div class="callout" style="background:#fffbeb; border-color:#fde68a; color:#92400e;">This game already has a manually-entered official score — that score will be left alone. The feed's score still saves separately as the feed's own reported value.</div>
+  {% endif %}
+</div>
+
+<div class="card" style="max-width:640px;">
+  <h2 style="font-size:13px; margin:0 0 8px 0;">Team stats</h2>
+  <table>
+    <thead><tr><th></th><th>{{ school['mascot'] or school['name'] }}</th><th>Opponent</th></tr></thead>
+    <tbody>
+      {% for row in preview_rows %}
+      <tr><td>{{ row['label'] }}</td><td>{{ row['for'] or '—' }}</td><td>{{ row['against'] or '—' }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if scoring_preview %}
+<div class="card" style="max-width:640px;">
+  <h2 style="font-size:13px; margin:0 0 8px 0;">Scoring Summary ({{ scoring_preview|length }} play{{ 's' if scoring_preview|length != 1 }})</h2>
+  <table>
+    <thead><tr><th>When</th><th>Play</th><th>Score</th></tr></thead>
+    <tbody>
+      {% for p in scoring_preview %}
+      <tr>
+        <td style="white-space:nowrap;">{{ [p['period'], p['clock']]|select|join(' ') }}</td>
+        <td>{{ p['description'] }}{% if p['down_distance'] %} <span style="color:#94a3b8;">({{ p['down_distance'] }})</span>{% endif %}</td>
+        <td>{% if p['score_for'] is not none and p['score_against'] is not none %}{{ p['score_for'] }}&ndash;{{ p['score_against'] }}{% else %}&mdash;{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="footnote" style="margin-top:8px;">This is the box score's whole play-by-play story — just the plays that changed the score, same as a printed box score's Scoring Summary. The feed parsed {{ total_plays_parsed }} plays in total; the rest are used for nothing here.</div>
+</div>
+{% endif %}
+
+{% if player_tables_preview['for'] or player_tables_preview['against'] %}
+<div class="card" style="max-width:640px;">
+  <h2 style="font-size:13px; margin:0 0 8px 0;">Player stats</h2>
+  {% for side, side_label in [('for', school['mascot'] or school['name']), ('against', 'Opponent')] %}
+    {% if player_tables_preview[side] %}
+    <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#64748b; margin:14px 0 6px 0;">{{ side_label }}</div>
+    {% for t in player_tables_preview[side] %}
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px; font-weight:600; color:#94a3b8; margin-bottom:4px;">{{ t['label'] }}</div>
+      <table>
+        <thead><tr><th>Player</th>{% for c in t['columns'] %}<th>{{ c['label'] }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for p in t['players'] %}
+          <tr>
+            <td>{{ '#' ~ p['jersey_number'] ~ ' ' if p['jersey_number'] }}{{ p['player_name'] }}</td>
+            {% for c in t['columns'] %}<td>{{ p['stats'].get(c['key']) or '—' }}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card" style="max-width:640px;">
+  <form method="POST" action="/admin/schedule/{{ game['id'] }}/stats/import/commit">
+    <input type="hidden" name="feed_text" value="{{ feed_text }}">
+    <button class="btn" type="submit">Confirm &amp; Publish</button>
+    <a class="btn secondary" href="/admin/schedule/{{ game['id'] }}/stats/import">Discard &amp; Re-paste</a>
+  </form>
+</div>
+{% endblock %}

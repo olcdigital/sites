@@ -1,0 +1,72 @@
+{% extends "admin_base.html" %}
+{% set active = "staff" %}
+{% block title %}Staff Directory{% endblock %}
+{% block heading %}Staff Directory{% endblock %}
+{% block subheading %}Every staff member this school has on file — the source of record roster_coaches point back to{% endblock %}
+{% block content %}
+<div class="callout">
+  This is the full <b>staff_members</b> table, school-wide — coaches, administrators, trainers, everyone. Attaching
+  someone to a specific team's roster (and flagging Head Coach) still happens from that roster's
+  <a href="/admin/rosters">Coaches &amp; Staff</a> tab. What lives here is their bio, their Staff Directory
+  category/categories, and whether they're hidden from the public directory.
+</div>
+
+<div class="hub-nav">
+  <a class="btn secondary" href="/admin/staff/categories">Manage Categories</a>
+  <a class="btn secondary" href="/admin/staff/settings">Directory Settings</a>
+</div>
+
+<div class="card">
+  <div class="table-toolbar">
+    <div>
+      <h2 style="font-size:14px; margin:0 0 4px 0;">{{ 'Active' if status_filter=='active' else ('Inactive' if status_filter=='inactive' else 'All') }} Staff ({{ staff|length }})</h2>
+      <div class="footnote" style="margin:0;">New staff are usually added from a roster's Coaches &amp; Staff tab, but this is where they live afterward.</div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <select onchange="if(this.value) window.location='/admin/staff?status='+this.value;">
+        <option value="active" {{ 'selected' if status_filter=='active' }}>Active</option>
+        <option value="inactive" {{ 'selected' if status_filter=='inactive' }}>Inactive</option>
+        <option value="all" {{ 'selected' if status_filter=='all' }}>All</option>
+      </select>
+      <input type="text" id="staff-search" placeholder="Search by name or title&hellip;" style="padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; width:220px;">
+      <a class="btn" href="/admin/staff/new">+ New Staff Member</a>
+    </div>
+  </div>
+  <table id="staff-table">
+    <thead><tr><th>Name</th><th>Title</th><th>Staff Categories</th><th>Current Teams</th><th>Directory</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for s in staff %}
+      <tr>
+        <td data-search="{{ (s['first_name'] ~ ' ' ~ s['last_name'])|lower }}">{{ s['first_name'] }} {{ s['last_name'] }}</td>
+        <td data-search="{{ (s['title'] or '')|lower }}">{{ s['title'] or '—' }}</td>
+        <td>{{ s['category_names'] or '—' }}</td>
+        <td>{{ s['current_teams'] or '—' }}</td>
+        <td>{% if s['hidden_from_directory'] %}<span class="badge amber">Hidden</span>{% else %}<span class="badge green">Visible</span>{% endif %}</td>
+        <td>{% if s['active'] %}<span class="badge green">Active</span>{% else %}<span class="badge gray">Inactive</span>{% endif %}</td>
+        <td><a href="/admin/staff/{{ s['id'] }}">View Profile</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7">No staff on file yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="footnote" id="no-results" style="display:none;">No staff match that search.</div>
+</div>
+
+<script>
+  var searchInput = document.getElementById('staff-search');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('#staff-table tbody tr'));
+  searchInput.addEventListener('input', function () {
+    var q = this.value.trim().toLowerCase();
+    var visible = 0;
+    rows.forEach(function (tr) {
+      var cells = tr.querySelectorAll('[data-search]');
+      var haystack = Array.prototype.map.call(cells, function (c) { return c.dataset.search; }).join(' ');
+      var match = !q || haystack.indexOf(q) !== -1;
+      tr.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    document.getElementById('no-results').style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
+  });
+</script>
+{% endblock %}

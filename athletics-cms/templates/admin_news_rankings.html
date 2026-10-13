@@ -1,0 +1,169 @@
+{% extends "admin_base.html" %}
+{% set active = "news" %}
+{% block title %}Manage Rankings{% endblock %}
+{% block heading %}Manage Rankings{% endblock %}
+{% block subheading %}Drag to reorder, lock a story in place, or reset everything unlocked back to release-date order{% endblock %}
+{% block content %}
+
+<a href="/admin/news" style="font-size:12.5px; font-weight:600;">&larr; Back to News</a>
+
+<div class="tabs" style="margin-top:14px;">
+  <a href="/admin/news/rankings" class="{{ 'active' if scope=='home' }}">Home Page</a>
+  <a href="/admin/news/rankings?scope=sport{{ '&team=' ~ team['id'] if team }}" class="{{ 'active' if scope=='sport' }}">Sport Page</a>
+</div>
+
+{% if picking_team %}
+<div class="callout">Pick a sport to manage its Sport Page News ranking.</div>
+<div class="hub-grid">
+  {% for t in teams %}
+  <a class="hub-card" href="/admin/news/rankings?scope=sport&team={{ t['id'] }}">
+    <div class="hc-name">{{ t['name'] }}</div>
+  </a>
+  {% else %}
+  <p>No teams yet.</p>
+  {% endfor %}
+</div>
+
+{% else %}
+{% if scope == 'sport' %}
+<div class="callout">Ranking {{ team['name'] }}'s Sport Page News. <a href="/admin/news/rankings?scope=sport">&larr; Choose a different sport</a></div>
+{% else %}
+<div class="callout">Ranking the Home Page's News feed.</div>
+{% endif %}
+
+<div class="card" style="max-width:640px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <h3 style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--navy); margin:0;">In Rotation ({{ ranked|length }})</h3>
+    <form method="POST" action="/admin/news/rankings/rank_by_date" style="margin:0;">
+      <input type="hidden" name="scope" value="{{ scope }}">
+      <input type="hidden" name="team_id" value="{{ team['id'] if team else '' }}">
+      <button type="submit" class="btn secondary" style="padding:6px 12px; font-size:12px;">Rank by Release Date</button>
+    </form>
+  </div>
+
+  <div id="rank-list" style="display:flex; flex-direction:column; gap:6px;">
+    {% for a in ranked %}
+    <div class="rank-row" data-id="{{ a['id'] }}" draggable="{{ 'false' if a[locked_col] else 'true' }}"
+         style="display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 12px;">
+      <span class="rank-handle" style="color:#94a3b8; font-size:16px; line-height:1; cursor:{{ 'not-allowed' if a[locked_col] else 'grab' }};" aria-hidden="true">&#9776;</span>
+      <span class="rank-pos badge blue" style="min-width:22px; text-align:center;">{{ loop.index }}</span>
+      <span style="flex:1; min-width:0;">
+        <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ a['title'] }}</div>
+        <div class="footnote" style="margin:1px 0 0 0;">{{ a['published_at'][:10] if a['published_at'] else 'unpublished' }}{% if a[rank_col] %} &middot; currently pinned to Position {{ a[rank_col] }}{% endif %}</div>
+      </span>
+      <label style="display:flex; align-items:center; gap:5px; font-size:11.5px; color:#475569; white-space:nowrap;">
+        <input type="checkbox" class="rank-lock" {{ 'checked' if a[locked_col] }} style="width:auto;"> Lock
+      </label>
+      <form method="POST" action="/admin/news/rankings/toggle_excluded" style="margin:0;">
+        <input type="hidden" name="scope" value="{{ scope }}">
+        <input type="hidden" name="team_id" value="{{ team['id'] if team else '' }}">
+        <input type="hidden" name="article_id" value="{{ a['id'] }}">
+        <input type="hidden" name="excluded" value="1">
+        <button type="submit" class="btn secondary" style="padding:5px 9px; font-size:11.5px;">Remove</button>
+      </form>
+    </div>
+    {% else %}
+    <p class="footnote">No published stories are eligible here yet.</p>
+    {% endfor %}
+  </div>
+
+  <button class="btn" type="button" onclick="saveRanking()" style="margin-top:14px;">Save Order</button>
+  <div class="footnote" style="margin-top:8px;">Saving assigns every story above an explicit position matching this order — including ones only sitting here by release date. "Rank by Release Date" resets any unlocked story back to automatic date ordering.</div>
+</div>
+
+{% if excluded %}
+<div class="card" style="max-width:640px;">
+  <h3 style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--navy); margin:0 0 12px 0;">Not Shown Here ({{ excluded|length }})</h3>
+  {% for a in excluded %}
+  <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border);">
+    <span style="flex:1; font-size:13px;">{{ a['title'] }}</span>
+    <form method="POST" action="/admin/news/rankings/toggle_excluded" style="margin:0;">
+      <input type="hidden" name="scope" value="{{ scope }}">
+      <input type="hidden" name="team_id" value="{{ team['id'] if team else '' }}">
+      <input type="hidden" name="article_id" value="{{ a['id'] }}">
+      <input type="hidden" name="excluded" value="0">
+      <button type="submit" class="btn secondary" style="padding:5px 9px; font-size:11.5px;">Add to Rotation</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<form id="save-form" method="POST" action="/admin/news/rankings/save" style="display:none;">
+  <input type="hidden" name="scope" value="{{ scope }}">
+  <input type="hidden" name="team_id" value="{{ team['id'] if team else '' }}">
+  <input type="hidden" name="order_json" id="order_json">
+</form>
+
+<script>
+  // Plain HTML5 drag-and-drop reordering — same vanilla-JS pattern as the
+  // roster field-order screen (admin_roster_fields.html), no external
+  // library. A locked row's checkbox keeps draggable in sync live, so
+  // checking Lock mid-drag-session immediately pins it without a reload.
+  var list = document.getElementById('rank-list');
+  var dragEl = null;
+
+  function renumber() {
+    list.querySelectorAll('.rank-row').forEach(function (row, i) {
+      row.querySelector('.rank-pos').textContent = i + 1;
+    });
+  }
+
+  list.querySelectorAll('.rank-row').forEach(function (row) {
+    row.addEventListener('dragstart', function () {
+      if (row.draggable !== true && row.getAttribute('draggable') !== 'true') return;
+      dragEl = row;
+      row.style.opacity = '0.4';
+    });
+    row.addEventListener('dragend', function () {
+      row.style.opacity = '';
+      dragEl = null;
+      renumber();
+    });
+    var lockBox = row.querySelector('.rank-lock');
+    lockBox.addEventListener('change', function () {
+      row.draggable = !lockBox.checked;
+      row.setAttribute('draggable', lockBox.checked ? 'false' : 'true');
+      row.querySelector('.rank-handle').style.cursor = lockBox.checked ? 'not-allowed' : 'grab';
+    });
+  });
+
+  list.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    if (!dragEl) return;
+    var after = getRowAfter(e.clientY);
+    if (after == null) {
+      list.appendChild(dragEl);
+    } else if (after !== dragEl) {
+      list.insertBefore(dragEl, after);
+    }
+  });
+
+  function getRowAfter(y) {
+    var rows = [].slice.call(list.querySelectorAll('.rank-row')).filter(function (r) { return r !== dragEl; });
+    var closest = { offset: -Infinity, element: null };
+    rows.forEach(function (row) {
+      var box = row.getBoundingClientRect();
+      var offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        closest = { offset: offset, element: row };
+      }
+    });
+    return closest.element;
+  }
+
+  function saveRanking() {
+    var rows = list.querySelectorAll('.rank-row');
+    var order = [];
+    rows.forEach(function (row) {
+      order.push({
+        id: parseInt(row.dataset.id, 10),
+        locked: row.querySelector('.rank-lock').checked,
+      });
+    });
+    document.getElementById('order_json').value = JSON.stringify(order);
+    document.getElementById('save-form').submit();
+  }
+</script>
+{% endif %}
+{% endblock %}

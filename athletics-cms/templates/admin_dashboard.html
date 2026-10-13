@@ -1,0 +1,98 @@
+{% extends "admin_base.html" %}
+{% set active = "dashboard" %}
+{% block title %}Dashboard{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+{% block subheading %}Overview of {{ school['name'] }} Athletics — real data from SQLite{% endblock %}
+{% block content %}
+<div class="stat-grid">
+  <div class="stat-card"><div class="num">{{ upcoming_count }}</div><div class="label">Upcoming games</div></div>
+  <div class="stat-card"><div class="num">{{ draft_pages }}</div><div class="label">Draft pages</div></div>
+  <a class="stat-card" href="/admin/news?status=pending_review" style="text-decoration:none; color:inherit;"><div class="num">{{ pending_news }}</div><div class="label">News pending review</div></a>
+  <div class="stat-card"><div class="num">{{ active_staff }}</div><div class="label">Active staff accounts</div></div>
+</div>
+
+<div class="card">
+  <div class="table-toolbar">
+    <div>
+      <h2 style="font-size:14px; margin:0 0 4px 0;">Today's Games — {{ selected_date }}{% if is_today %} <span class="badge blue">Today</span>{% endif %}</h2>
+      <div class="footnote" style="margin:0;">Game-day view, across every team. Enter a final score the moment it's in — no need to open the full Edit Game form for that alone.</div>
+    </div>
+    <div style="display:flex; gap:6px;">
+      <a class="btn secondary" href="/admin?date={{ prev_date }}" style="padding:7px 12px; font-size:12px;">&larr; Prev Day</a>
+      {% if not is_today %}<a class="btn secondary" href="/admin" style="padding:7px 12px; font-size:12px;">Today</a>{% endif %}
+      <a class="btn secondary" href="/admin?date={{ next_date }}" style="padding:7px 12px; font-size:12px;">Next Day &rarr;</a>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>Time</th><th>Team</th><th>Opponent</th><th>Location</th><th style="min-width:220px;">Result</th></tr></thead>
+    <tbody>
+      {% for g in todays_games %}
+      <tr>
+        <td>
+          {% if g['time_info']['has_time'] %}{{ g['time_info']['site'] }}{% else %}&mdash;{% endif %}
+        </td>
+        <td>{{ g['team_name'] }}</td>
+        <td>
+          {% if g['is_neutral_host'] %}{{ g['opponent_display_name'] or g['opponent_name'] }} vs. opponent{% else %}
+          {{ 'at' if g['home_away']=='away' else 'vs.' }} {{ g['opponent_display_name'] or g['opponent_name'] }}{% endif %}
+        </td>
+        <td>{{ g['location'] or '—' }}</td>
+        <td>
+          {% if g['status'] == 'final' %}
+            {% if g['team_results_format'] == 'place_finish' and g['finish_place'] %}
+              <span class="badge blue">{{ ordinal(g['finish_place']) }} of {{ g['total_teams'] }}</span>
+            {% elif g['score_for'] is not none and g['score_against'] is not none %}
+              {% set r = result_letter(g['score_for'], g['score_against']) %}
+              <span class="badge {{ 'green' if r=='W' else ('gray' if r=='T' else 'amber') }}">{{ r }} {{ g['score_for'] }}&ndash;{{ g['score_against'] }}</span>
+            {% else %}
+              <span class="badge gray">Final</span>
+            {% endif %}
+            <a href="/admin/schedule/{{ g['id'] }}/edit" style="font-size:11.5px; margin-left:6px;">Edit</a>
+          {% else %}
+          <form method="POST" action="/admin/schedule/{{ g['id'] }}/quick_result" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <input type="hidden" name="date" value="{{ selected_date }}">
+            {% if g['team_results_format'] == 'place_finish' %}
+            <input type="number" name="finish_place" placeholder="Place" style="width:58px; padding:5px 6px; font-size:12px; border:1px solid var(--border); border-radius:5px;">
+            <span class="footnote" style="margin:0;">of</span>
+            <input type="number" name="total_teams" value="{{ g['total_teams'] if g['total_teams'] is not none else '' }}" placeholder="Teams" style="width:58px; padding:5px 6px; font-size:12px; border:1px solid var(--border); border-radius:5px;">
+            {% else %}
+            <input type="number" name="score_for" placeholder="Us" style="width:48px; padding:5px 6px; font-size:12px; border:1px solid var(--border); border-radius:5px;">
+            <span class="footnote" style="margin:0;">&ndash;</span>
+            <input type="number" name="score_against" placeholder="Opp" style="width:48px; padding:5px 6px; font-size:12px; border:1px solid var(--border); border-radius:5px;">
+            {% endif %}
+            <button class="btn" type="submit" style="padding:5px 10px; font-size:11.5px;">Save Final</button>
+            {% if g['has_stats'] %}<a class="btn secondary" href="/admin/schedule/{{ g['id'] }}/stats/import" style="padding:5px 10px; font-size:11.5px;">Stats Feed</a>{% endif %}
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No games on {{ selected_date }}.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div class="table-toolbar">
+    <h2 style="font-size:14px; margin:0;">Recent stories</h2>
+    <a class="btn secondary" href="/admin/news" style="padding:7px 12px; font-size:12px;">All Stories</a>
+  </div>
+  <table>
+    <thead><tr><th>Title</th><th>Status</th><th>Published</th></tr></thead>
+    <tbody>
+      {% for a in recent_articles %}
+      <tr>
+        <td><a href="/admin/news/{{ a['id'] }}/edit">{{ a['title'] }}</a></td>
+        <td><span class="badge {{ 'green' if a['status']=='published' else ('amber' if a['status']=='pending_review' else 'gray') }}">{{ 'Pending Review' if a['status']=='pending_review' else a['status']|capitalize }}</span></td>
+        <td>{{ a['published_at'] or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3">No stories yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="footnote">This dashboard is querying real tables (games, pages, articles, users) — nothing here is mocked.</div>
+{% endblock %}

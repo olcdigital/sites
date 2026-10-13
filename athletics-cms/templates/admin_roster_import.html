@@ -1,0 +1,46 @@
+{% extends "admin_base.html" %}
+{% set active = "rosters" %}
+{% block title %}Paste Import Roster{% endblock %}
+{% block heading %}Paste Import Roster{% endblock %}
+{% block subheading %}Add a whole roster in one paste instead of one player at a time{% endblock %}
+{% block content %}
+<div class="card" style="max-width:720px;">
+  {% if empty_paste %}
+  <div class="callout" style="background:#fffbeb; border-color:#fde68a; color:#78350f;">Nothing was pasted in — paste your roster into the box below and try again.</div>
+  {% endif %}
+
+  <form method="POST" action="/admin/rosters/import/preview">
+    <div class="form-row">
+      <div class="field">
+        <label>Team</label>
+        <select name="team_id" required>
+          {% for t in teams %}
+          <option value="{{ t['id'] }}" {{ 'selected' if team_id==t['id'] }}>{{ t['name'] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Season</label>
+        <input type="text" name="season" value="2026" required>
+      </div>
+    </div>
+
+    <div class="field" style="max-width:none;">
+      <label>Paste Roster</label>
+      <textarea name="paste_text" rows="12" placeholder="First, Last, Jersey #, Position, Class, Height, Weight, Hometown, High School" style="width:100%; font-family:ui-monospace,monospace; font-size:12.5px; padding:10px; border:1px solid var(--border); border-radius:6px;"></textarea>
+      <div class="footnote" style="margin:6px 0 0 0;">
+        One player per line. Paste straight from a spreadsheet (tab-separated) or type comma-separated — either works. Expected column order:
+        <br><code>{{ import_columns | join(', ') }}</code>
+        <br>Trailing columns can be left off (e.g. skip height/weight/hometown/high school entirely and just do name + jersey + position). A first line that's just the column names is fine too — it's detected and skipped.
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:4px;">
+      Nothing is saved yet on the next screen either &mdash; you'll get a chance to review every row, fix anything that parsed wrong, and confirm whether any name that matches an existing player is that same returning player or a different person, before anything is added.
+    </div>
+
+    <button class="btn" type="submit" style="margin-top:6px;">Preview Import &rarr;</button>
+    <a class="btn secondary" href="/admin/rosters?team={{ team_id or '' }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "admin_base.html" %}
+{% set active = "settings" %}
+{% block title %}Settings{% endblock %}
+{% block heading %}Settings{% endblock %}
+{% block subheading %}School-wide configuration — more of these land here as they're built{% endblock %}
+{% block content %}
+
+<div class="hub-grid">
+  <a class="hub-card" href="/admin/opponents">
+    <div class="hc-name">Opponents</div>
+    <div class="hc-meta">The opponent directory games are scheduled against</div>
+  </a>
+  <a class="hub-card" href="/admin/users">
+    <div class="hc-name">Users &amp; Access</div>
+    <div class="hc-meta">Roles, permissions, and who's on the team</div>
+  </a>
+</div>
+
+{% endblock %}

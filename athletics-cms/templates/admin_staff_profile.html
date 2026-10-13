@@ -1,0 +1,209 @@
+{% extends "admin_base.html" %}
+{% set active = "staff" %}
+{% block title %}{{ staff['first_name'] }} {{ staff['last_name'] }}{% endblock %}
+{% block heading %}{{ staff['first_name'] }} {{ staff['last_name'] }}{% endblock %}
+{% block subheading %}Staff profile — one staff_members row, editable from here; roster attachments live on Coaches &amp; Staff{% endblock %}
+{% block content %}
+<style>
+  .link-row{display:flex; gap:8px; margin-bottom:6px; align-items:center;}
+  .link-row input{flex:1;}
+  .cat-check{display:flex; align-items:center; gap:7px; font-size:13px; padding:4px 0;}
+  .cat-check input{width:auto;}
+</style>
+<a href="/admin/staff" style="font-size:12.5px; font-weight:600;">&larr; All Staff</a>
+
+{% if not staff['active'] %}
+<div class="callout" style="margin-top:14px; background:#f1f5f9; border-color:#cbd5e1; color:#475569;">
+  This staff member is <b>Inactive</b> — off the All Staff default list and the public Staff Directory. Their bio, roster history, and career record are all still here; see Status at the bottom to reactivate.
+</div>
+{% endif %}
+
+<div class="card" style="max-width:720px; margin-top:14px;">
+  <div class="form-section-head"><h3>Bio</h3><div class="footnote" style="margin:2px 0 0 0;">Editing here updates this person everywhere they appear.</div></div>
+  <form method="POST" action="/admin/staff/{{ staff['id'] }}/edit">
+    <div class="form-row">
+      <div class="field"><label>First Name</label><input type="text" name="first_name" value="{{ staff['first_name'] }}" required></div>
+      <div class="field"><label>Last Name</label><input type="text" name="last_name" value="{{ staff['last_name'] }}" required></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Title</label><input type="text" name="title" value="{{ staff['title'] or '' }}"></div>
+      <div class="field"><label>Photo URL</label><input type="text" name="photo_url" value="{{ staff['photo_url'] or '' }}"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Email</label><input type="text" name="email" value="{{ staff['email'] or '' }}"></div>
+      <div class="field"><label>Phone</label><input type="text" name="phone" value="{{ staff['phone'] or '' }}"></div>
+    </div>
+    <div class="field" style="max-width:none;">
+      <label>Bio</label>
+      <textarea name="bio_text" rows="4" style="width:100%; font-family:inherit; padding:8px 10px; border:1px solid var(--border); border-radius:6px;">{{ staff['bio_text'] or '' }}</textarea>
+    </div>
+    <div class="cat-check">
+      <input type="checkbox" name="hidden_from_directory" id="hidden_from_directory" {{ 'checked' if staff['hidden_from_directory'] }}>
+      <label for="hidden_from_directory" style="margin:0; font-weight:500;">Hide from the public Staff Directory (still attachable to a roster &mdash; e.g. a GA or student assistant)</label>
+    </div>
+
+    <div class="form-section" style="border-top:1px solid var(--border); margin-top:16px; padding-top:16px;">
+      <div class="form-section-head"><h3>Staff Categories</h3><div class="footnote" style="margin:2px 0 0 0;">Controls where they show up on the public Staff Directory only — this is not their roster assignment. A person can belong to more than one.</div></div>
+      {% for c in categories %}
+      <div class="cat-check">
+        <input type="checkbox" name="category_ids" value="{{ c['id'] }}" id="cat-{{ c['id'] }}" {{ 'checked' if c['id'] in selected_category_ids }}>
+        <label for="cat-{{ c['id'] }}" style="margin:0; font-weight:500;">{{ c['display_name'] }}{% if c['is_sport'] %} <span class="footnote" style="display:inline;">(sport)</span>{% endif %}</label>
+      </div>
+      {% else %}
+      <p class="footnote">No categories yet — <a href="/admin/staff/categories">create one</a>.</p>
+      {% endfor %}
+    </div>
+
+    <div class="form-section" style="border-top:1px solid var(--border); margin-top:4px; padding-top:16px; border-bottom:none; padding-bottom:0;">
+      <div class="form-section-head"><h3>Custom Fields</h3><div class="footnote" style="margin:2px 0 0 0;">Anything else worth showing on their bio.</div></div>
+      <div id="fields-container">
+        {% for cf in custom_fields %}
+        <div class="link-row">
+          <input type="text" name="custom_field_label" value="{{ cf['label'] }}" placeholder="Label">
+          <input type="text" name="custom_field_value" value="{{ cf['value'] }}" placeholder="Value">
+          <button type="button" class="btn secondary" onclick="this.parentElement.remove()" style="padding:6px 10px;">Remove</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn secondary" onclick="addFieldRow()">+ Add Custom Field</button>
+    </div>
+
+    <button class="btn" type="submit" style="margin-top:18px;">Save Changes</button>
+  </form>
+</div>
+
+<div class="card" style="max-width:720px;">
+  <h2 style="font-size:14px; margin-top:0;">Social Links</h2>
+  {% if social_links %}
+  <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+    {% for link in social_links %}
+    <div style="display:flex; align-items:center; gap:10px; font-size:13px;">
+      <span class="badge blue" style="min-width:80px; text-align:center;">{{ SOCIAL_PLATFORM_LABELS.get(link['platform'], link['platform']) if SOCIAL_PLATFORM_LABELS else link['platform'] }}</span>
+      <span style="flex:1;">{{ link['handle_or_url'] }}</span>
+      <form method="POST" action="/admin/staff/{{ staff['id'] }}/social/{{ link['id'] }}/delete" onsubmit="return confirm('Remove this social link?');">
+        <button type="submit" style="background:none; border:none; color:#b91c1c; font-size:12.5px; cursor:pointer; padding:0; font-family:inherit;">Remove</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <form method="POST" action="/admin/staff/{{ staff['id'] }}/social/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+    <div class="field" style="margin-bottom:0; max-width:180px;">
+      <label>Platform</label>
+      <select name="platform">
+        {% for key, label in social_platforms %}
+        <option value="{{ key }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:0; flex:1; min-width:200px;">
+      <label>Handle or URL</label>
+      <input type="text" name="handle_or_url" placeholder="@handle or full link">
+    </div>
+    <button class="btn secondary" type="submit">+ Add Link</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="font-size:14px; margin-top:0;">Roster Assignments</h2>
+  <div class="footnote" style="margin:0 0 10px 0;">Read-only here — attach or remove this person from a roster on that team's <a href="/admin/rosters">Coaches &amp; Staff</a> tab. Head Coach is flagged there too, and drives the Career Record below.</div>
+  <table>
+    <thead><tr><th>Season</th><th>Team</th><th>Head Coach</th><th>Visibility</th></tr></thead>
+    <tbody>
+      {% for a in assignments %}
+      <tr>
+        <td>{{ a['season'] }}</td>
+        <td>{{ a['team_name'] }}</td>
+        <td>{% if a['is_head_coach'] %}<span class="badge blue">Head Coach</span>{% endif %}</td>
+        <td>{% if a['hidden'] %}<span class="badge amber">Hidden</span>{% else %}<span class="badge green">Visible</span>{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">Not currently attached to any roster.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if career_record %}
+<div class="card">
+  <h2 style="font-size:14px; margin-top:0;">Career Record</h2>
+  <div class="footnote" style="margin:0 0 10px 0;">
+    The Season/Team rows below marked <span class="badge blue" style="padding:2px 6px;">Computed</span> come straight from this school's own schedule — every final, record-eligible game across every team/season this person is flagged Head Coach for here. That means a season coached at a <i>different</i> school never shows up on its own, and a mid-season coaching change here isn't split between two people — use a <span class="badge gray" style="padding:2px 6px;">Manual</span> entry below for either case.
+  </div>
+  <div class="stat-grid" style="grid-template-columns:repeat(4,1fr); margin-bottom:16px;">
+    <div class="stat-card"><div class="num">{{ career_record['overall']['w'] }}</div><div class="label">Wins</div></div>
+    <div class="stat-card"><div class="num">{{ career_record['overall']['l'] }}</div><div class="label">Losses</div></div>
+    <div class="stat-card"><div class="num">{{ career_record['overall']['t'] }}</div><div class="label">Ties</div></div>
+    <div class="stat-card"><div class="num">{{ career_record['overall']['total'] }}</div><div class="label">Total Games</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Season</th><th>Team</th><th>Source</th><th>W</th><th>L</th><th>T</th><th></th></tr></thead>
+    <tbody>
+      {% for s in career_record['stints'] %}
+      <tr>
+        <td>{{ s['season'] }}</td><td>{{ s['team_name'] }}</td>
+        <td><span class="badge blue">Computed</span></td>
+        <td>{{ s['w'] }}</td><td>{{ s['l'] }}</td><td>{{ s['t'] }}</td><td></td>
+      </tr>
+      {% endfor %}
+      {% for m in career_record['manual_entries'] %}
+      <tr>
+        <td>{{ m['season'] }}</td>
+        <td>{{ m['team_name'] }}{% if m['note'] %}<div class="footnote" style="margin:2px 0 0 0;">{{ m['note'] }}</div>{% endif %}</td>
+        <td><span class="badge gray">Manual</span></td>
+        <td>{{ m['w'] }}</td><td>{{ m['l'] }}</td><td>{{ m['t'] }}</td>
+        <td>
+          <form method="POST" action="/admin/staff/{{ staff['id'] }}/records/{{ m['id'] }}/delete" onsubmit="return confirm('Remove this manual record entry?');" style="margin:0;">
+            <button type="submit" style="background:none; border:none; color:#b91c1c; font-size:12.5px; cursor:pointer; padding:0; font-family:inherit;">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      {% if not career_record['stints'] and not career_record['manual_entries'] %}
+      <tr><td colspan="7">No games or manual entries yet.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+  <div class="form-section" style="border-top:1px solid var(--border); margin-top:16px; padding-top:16px; border-bottom:none; padding-bottom:0;">
+    <div class="form-section-head"><h3>Add a Season Record</h3><div class="footnote" style="margin:2px 0 0 0;">For a season at a previous school, or to hand-correct a season here (e.g. they only coached part of it).</div></div>
+    <form method="POST" action="/admin/staff/{{ staff['id'] }}/records/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+      <div class="field" style="margin-bottom:0;"><label>Season</label><input type="text" name="season" placeholder="e.g. 2019" style="width:100px;" required></div>
+      <div class="field" style="margin-bottom:0; flex:1; min-width:160px;"><label>Team / School</label><input type="text" name="team_name" placeholder="e.g. Eastmoor University" required></div>
+      <div class="field" style="margin-bottom:0;"><label>W</label><input type="number" name="wins" value="0" style="width:70px;"></div>
+      <div class="field" style="margin-bottom:0;"><label>L</label><input type="number" name="losses" value="0" style="width:70px;"></div>
+      <div class="field" style="margin-bottom:0;"><label>T</label><input type="number" name="ties" value="0" style="width:70px;"></div>
+      <div class="field" style="margin-bottom:0; flex:1; min-width:160px;"><label>Note (optional)</label><input type="text" name="note" placeholder="e.g. interim head coach, games 6-12"></div>
+      <button class="btn secondary" type="submit">+ Add Record</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2 style="font-size:14px; margin-top:0;">Status</h2>
+  <p class="footnote" style="margin:0 0 10px 0;">
+    There's no delete for a staff member — deactivating is the way to take someone off the All Staff default list and
+    the public Staff Directory when they leave. Everything about them (roster history, custom fields, social links,
+    career record) stays exactly as it is, and reactivating brings them right back if they return or you just need to
+    fix something on their profile.
+  </p>
+  <div style="display:flex; align-items:center; gap:12px;">
+    {% if staff['active'] %}<span class="badge green">Active</span>{% else %}<span class="badge gray">Inactive</span>{% endif %}
+    <form method="POST" action="/admin/staff/{{ staff['id'] }}/toggle_active" style="margin:0;"
+          onsubmit="return confirm('{{ 'Deactivate' if staff['active'] else 'Reactivate' }} {{ staff['first_name'] }} {{ staff['last_name'] }}?');">
+      <button type="submit" class="btn secondary">{{ 'Deactivate' if staff['active'] else 'Reactivate' }}</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  function addFieldRow() {
+    var div = document.createElement('div');
+    div.className = 'link-row';
+    div.innerHTML = '<input type="text" name="custom_field_label" placeholder="Label">' +
+      '<input type="text" name="custom_field_value" placeholder="Value">' +
+      '<button type="button" class="btn secondary" onclick="this.parentElement.remove()" style="padding:6px 10px;">Remove</button>';
+    document.getElementById('fields-container').appendChild(div);
+  }
+</script>
+{% endblock %}

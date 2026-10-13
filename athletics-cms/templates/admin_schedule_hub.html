@@ -1,0 +1,74 @@
+{% extends "admin_base.html" %}
+{% set active = "schedule" %}
+{% block title %}Schedule & Results{% endblock %}
+{% block heading %}Schedule &amp; Results{% endblock %}
+{% block subheading %}Pick a sport to view or edit its schedule{% endblock %}
+{% block content %}
+
+<div class="tabs">
+  <a href="/admin/schedule" class="{{ 'active' if mode=='current' }}">Current</a>
+  <a href="/admin/schedule?view=by_sport" class="{{ 'active' if mode in ('by_sport_pick_team','by_sport_pick_season') }}">Browse by Sport</a>
+  <a href="/admin/schedule?view=by_season" class="{{ 'active' if mode in ('by_season_pick_season','by_season_pick_team') }}">Browse by Season</a>
+</div>
+
+{% if mode == 'current' %}
+<div class="callout">Each card is that team's <b>current</b> schedule — the one linked to from the public site. Click a card to view or edit it. Need an older season instead? Use Browse by Sport or Browse by Season above.</div>
+<div class="hub-grid">
+  {% for c in cards %}
+  <a class="hub-card" href="/admin/schedule?team={{ c.team['id'] }}">
+    <div class="hc-name">{{ c.team['name'] }}</div>
+    <div class="hc-meta">{% if c.season %}{{ c.season }} season &middot; {{ c.count }} game{{ 's' if c.count != 1 }}{% else %}No schedule yet{% endif %}</div>
+  </a>
+  {% else %}
+  <p>No teams yet.</p>
+  {% endfor %}
+</div>
+
+{% elif mode == 'by_sport_pick_team' %}
+<div class="callout">Pick a sport to see every season it has a schedule for.</div>
+<div class="hub-grid">
+  {% for t in teams %}
+  <a class="hub-card" href="/admin/schedule?view=by_sport&team={{ t['id'] }}">
+    <div class="hc-name">{{ t['name'] }}</div>
+  </a>
+  {% endfor %}
+</div>
+
+{% elif mode == 'by_sport_pick_season' %}
+<div class="callout">{{ picked_team['name'] }} — pick a season to view or edit that schedule. <a href="/admin/schedule?view=by_sport">&larr; Choose a different sport</a></div>
+<div class="hub-grid">
+  {% for s in seasons_for_team %}
+  <a class="hub-card" href="/admin/schedule?team={{ picked_team['id'] }}&season={{ s }}">
+    <div class="hc-name">{{ s }} season</div>
+    {% if s == current_schedule_season %}<div class="hc-meta">Current</div>{% endif %}
+  </a>
+  {% else %}
+  <p>{{ picked_team['name'] }} has no games for any season yet.</p>
+  {% endfor %}
+</div>
+
+{% elif mode == 'by_season_pick_season' %}
+<div class="callout">Pick a season to see every sport with a schedule in it.</div>
+<div class="hub-grid">
+  {% for s in all_seasons %}
+  <a class="hub-card" href="/admin/schedule?view=by_season&season={{ s }}">
+    <div class="hc-name">{{ s }} season</div>
+  </a>
+  {% else %}
+  <p>No schedule data for any season yet.</p>
+  {% endfor %}
+</div>
+
+{% elif mode == 'by_season_pick_team' %}
+<div class="callout">{{ picked_season }} season — pick a sport to view or edit its schedule. <a href="/admin/schedule?view=by_season">&larr; Choose a different season</a></div>
+<div class="hub-grid">
+  {% for t in teams_for_season %}
+  <a class="hub-card" href="/admin/schedule?team={{ t['id'] }}&season={{ picked_season }}">
+    <div class="hc-name">{{ t['name'] }}</div>
+  </a>
+  {% else %}
+  <p>No team has a schedule for {{ picked_season }}.</p>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

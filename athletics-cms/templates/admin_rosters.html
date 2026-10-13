@@ -1,0 +1,196 @@
+{% extends "admin_base.html" %}
+{% set active = "rosters" %}
+{% block title %}{{ current_team['name'] if current_team else 'Teams & Rosters' }}{% endblock %}
+{% block heading %}{{ current_team['name'] if current_team else 'Teams & Rosters' }}{% endblock %}
+{% block subheading %}athletes + roster_entries, joined live per season{% endblock %}
+{% block content %}
+<a href="/admin/rosters" style="font-size:12.5px; font-weight:600;">&larr; All Teams</a>
+
+{% if current_team %}
+<div class="callout" style="margin-top:14px;">You're editing <b>{{ current_team['name'] }}</b> only. To avoid mistakes, this screen deliberately never links to another sport's roster — use All Teams above to switch.</div>
+
+<div class="card">
+  <div class="tabs" style="margin-bottom:14px;">
+    <a class="active" href="#">Roster Settings</a>
+    <a href="/admin/rosters/coaches?team={{ current_team['id'] }}&season={{ current_season or '' }}">Coaches &amp; Staff</a>
+  </div>
+  <h2 style="font-size:14px; margin:0 0 4px 0;">Roster Settings &mdash; {{ current_team['name'] }}{% if current_season %} ({{ current_season }}){% endif %}</h2>
+  <div class="footnote" style="margin:0 0 12px 0;">Same underlying roster data &mdash; these only change how it renders on the public site.</div>
+  <form method="POST" action="/admin/rosters/settings">
+    <input type="hidden" name="team_id" value="{{ current_team['id'] }}">
+    <input type="hidden" name="season" value="{{ current_season or '' }}">
+
+    <div class="form-row">
+      <div class="field">
+        <label>Roster Display</label>
+        <select name="roster_template" onchange="this.form.submit()">
+          {% for key, label in roster_templates %}
+          <option value="{{ key }}" {{ 'selected' if current_team['roster_template']==key }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="footnote" style="margin:4px 0 0 0;">Card: compact number-tile grid. Photo: larger photo-forward tiles with real headshots. Table: the classic dense roster table &mdash; the one that uses the field order below.</div>
+      </div>
+    </div>
+
+    {% if settings %}
+    <div class="form-row">
+      <div class="field" style="flex:2;">
+        <label>Roster Title</label>
+        <input type="text" name="custom_title" value="{{ settings['custom_title'] or '' }}" placeholder="{{ roster_title }}">
+        <div class="footnote" style="margin:4px 0 0 0;">Defaults to &ldquo;{{ roster_title }}&rdquo; &mdash; type here to override it.</div>
+      </div>
+      <div class="field">
+        <label>Sort Roster By</label>
+        <select name="sort_mode">
+          {% for key, label in [('jersey','Jersey Number, then Last Name'), ('alpha','Alphabetical (Last Name)')] %}
+          <option value="{{ key }}" {{ 'selected' if settings['sort_mode']==key }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="field" style="flex:2;">
+        <label>Team Photo URL</label>
+        <input type="text" name="team_photo_url" value="{{ settings['team_photo_url'] or '' }}" placeholder="https://&hellip;">
+        {% if settings['team_photo_url'] %}<img src="{{ settings['team_photo_url'] }}" style="margin-top:8px; max-width:220px; border-radius:8px; display:block;" onerror="this.style.display='none';">{% endif %}
+      </div>
+      <div class="field">
+        <label>Display Coaches &amp; Staff Below Roster</label>
+        <select name="show_coaches">
+          <option value="on" {{ 'selected' if settings['show_coaches'] }}>Yes</option>
+          <option value="off" {{ 'selected' if not settings['show_coaches'] }}>No</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field" style="max-width:none; margin-top:4px;">
+      <label>Fields Shown on the Table Display</label>
+      <div class="footnote" style="margin:4px 0 8px 0;">Which columns show, in what order, and their header text &mdash; on its own page so you can drag to reorder.</div>
+      <a class="btn secondary" href="/admin/rosters/fields?team={{ current_team['id'] }}&season={{ current_season or '' }}">Customize Fields &amp; Order&hellip;</a>
+    </div>
+
+    {% if not (is_current_season and not settings['hidden']) %}
+    <div class="form-section-head" style="margin-top:16px;"><h3>Publishing</h3><div class="footnote" style="margin:2px 0 0 0;">A future roster can exist and be edited without being visible on the public site yet.</div></div>
+    <div class="form-row">
+      <div class="field">
+        <label>Visibility</label>
+        <select name="hidden">
+          <option value="" {{ 'selected' if not settings['hidden'] }}>Visible now</option>
+          <option value="on" {{ 'selected' if settings['hidden'] }}>Hidden until published</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Scheduled Publish (optional)</label>
+        <input type="datetime-local" name="publish_at" value="{{ settings['publish_at'] or '' }}">
+      </div>
+      <div class="field">
+        <label>When it publishes&hellip;</label>
+        <select name="publish_makes_current">
+          <option value="" {{ 'selected' if not settings['publish_makes_current'] }}>Just make it visible</option>
+          <option value="on" {{ 'selected' if settings['publish_makes_current'] }}>Also make it Current</option>
+        </select>
+      </div>
+    </div>
+    {% else %}
+    <div class="footnote" style="margin-top:16px;">This roster is live and Current, so scheduled-publish options are hidden. Mark a different season Current, or hide this one, to bring them back.</div>
+    {% endif %}
+
+    <button class="btn" type="submit" style="margin-top:12px;">Save Roster Settings</button>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <div class="table-toolbar">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <h2 style="font-size:14px; margin:0;">{{ roster_title or (current_team['name'] ~ ' roster') }}</h2>
+      {% if seasons|length > 1 %}
+      <form method="GET" action="/admin/rosters">
+        <input type="hidden" name="team" value="{{ current_team['id'] }}">
+        <select name="season" onchange="this.form.submit()">
+          {% for s in seasons %}
+          <option value="{{ s }}" {{ 'selected' if s==current_season }}>{{ s }} season</option>
+          {% endfor %}
+        </select>
+      </form>
+      {% elif current_season %}
+      <span class="badge gray">{{ current_season }} season</span>
+      {% endif %}
+      {% if current_season %}
+        {% if is_current_season %}
+        <span class="badge green">Current</span>
+        {% else %}
+        <form method="POST" action="/admin/rosters/current" style="margin:0;">
+          <input type="hidden" name="team_id" value="{{ current_team['id'] }}">
+          <input type="hidden" name="season" value="{{ current_season }}">
+          <button class="btn secondary" type="submit" style="padding:5px 11px; font-size:12px;">Mark as Current</button>
+        </form>
+        {% endif %}
+        {% if settings and settings['hidden'] %}<span class="badge amber">Hidden</span>{% endif %}
+      {% endif %}
+    </div>
+    <div style="display:flex; gap:8px;">
+      {% if current_season %}
+      <a class="btn secondary" href="/admin/rosters/bulk_edit?team={{ current_team['id'] }}&season={{ current_season }}">Bulk Edit</a>
+      <a class="btn secondary" href="/admin/rosters/export?team={{ current_team['id'] }}&season={{ current_season }}">Export CSV</a>
+      <a class="btn secondary" href="/admin/rosters/rollover?team={{ current_team['id'] }}">Season Rollover&hellip;</a>
+      {% endif %}
+      <a class="btn secondary" href="/admin/rosters/import?team={{ current_team['id'] }}">Paste Import&hellip;</a>
+      <a class="btn" href="/admin/rosters/new?team={{ current_team['id'] }}">+ Add Player</a>
+    </div>
+  </div>
+  {% if request.args.get('imported') %}
+  <div class="callout" style="background:#ecfdf5; border-color:#a7f3d0; color:#065f46;">Imported {{ request.args.get('imported') }} player(s) onto this roster.</div>
+  {% endif %}
+  {% if request.args.get('rolled_over') %}
+  <div class="callout" style="background:#ecfdf5; border-color:#a7f3d0; color:#065f46;">Rolled {{ request.args.get('rolled_over') }} returning player(s) into the {{ current_season }} season. Add the incoming class with Paste Import or + Add Player.</div>
+  {% endif %}
+  <table>
+    <thead><tr>
+      {% for f in fields_config %}{% if f.enabled %}<th>{{ roster_field_label(f) }}</th>{% endif %}{% endfor %}
+      <th>Hidden?</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for p in roster %}
+      <tr>
+        {% for f in fields_config %}{% if f.enabled %}
+        <td>
+          {% if f.key == 'height' %}{{ height_display(p['height_ft'], p['height_in']) }}
+          {% elif f.key == 'name' %}{{ p['first_name'] }} {{ p['last_name'] }}
+          {% else %}{{ p[f.key] or '' }}{% endif %}
+        </td>
+        {% endif %}{% endfor %}
+        <td>{% if p['hidden'] %}<span class="badge amber">Hidden</span>{% else %}<span class="badge green">Visible</span>{% endif %}</td>
+        <td><a href="/admin/rosters/{{ p['id'] }}/edit">Edit</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10">No roster entries for this team/season yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if coaches %}
+<div class="card">
+  <div class="table-toolbar">
+    <h2 style="font-size:14px; margin:0;">Coaches &amp; Staff</h2>
+    <a class="btn secondary" href="/admin/rosters/coaches?team={{ current_team['id'] }}&season={{ current_season }}">Manage Coaches &amp; Staff</a>
+  </div>
+  <table>
+    <thead><tr><th>Name</th><th>Title</th><th>Head Coach</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for c in coaches %}
+      <tr>
+        <td>{{ c['name'] }}</td>
+        <td>{{ c['title'] }}</td>
+        <td>{% if c['is_head_coach'] %}<span class="badge blue">Head Coach</span>{% endif %}</td>
+        <td>{% if c['hidden'] %}<span class="badge amber">Hidden</span>{% else %}<span class="badge green">Visible</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

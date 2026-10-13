@@ -1,0 +1,56 @@
+{% extends "admin_base.html" %}
+{% set active = "players" %}
+{% block title %}Players{% endblock %}
+{% block heading %}Players{% endblock %}
+{% block subheading %}Every athlete this school has on file — the source of record roster_entries point back to{% endblock %}
+{% block content %}
+<div class="callout">
+  This is the full <b>athletes</b> table, school-wide — every player, whether or not they're currently on a roster. A
+  roster assignment (jersey #, position, season, etc.) lives separately on <b>roster_entries</b> and is managed from
+  <a href="/admin/rosters">Teams &amp; Rosters</a> or from a player's own profile below.
+</div>
+
+<div class="card">
+  <div class="table-toolbar">
+    <div>
+      <h2 style="font-size:14px; margin:0 0 4px 0;">All Players ({{ players|length }})</h2>
+      <div class="footnote" style="margin:0;">New players are usually added from a team's roster, but this is where they live afterward.</div>
+    </div>
+    <input type="text" id="player-search" placeholder="Search by name or hometown&hellip;" style="padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; width:240px;">
+  </div>
+  <table id="players-table">
+    <thead><tr><th>Name</th><th>Hometown</th><th>Status</th><th>Current Teams</th><th></th></tr></thead>
+    <tbody>
+      {% for p in players %}
+      <tr>
+        <td data-search="{{ (p['first_name'] ~ ' ' ~ p['last_name'])|lower }}">{{ p['first_name'] }} {{ p['last_name'] }}</td>
+        <td data-search="{{ (p['hometown'] or '')|lower }}">{{ p['hometown'] or '—' }}</td>
+        <td><span class="badge {{ 'green' if p['status']=='active' else 'gray' }}">{{ p['status']|capitalize }}</span></td>
+        <td>{{ p['current_teams'] or '—' }}</td>
+        <td><a href="/admin/players/{{ p['id'] }}">View Profile</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No players on file yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="footnote" id="no-results" style="display:none;">No players match that search.</div>
+</div>
+
+<script>
+  var searchInput = document.getElementById('player-search');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('#players-table tbody tr'));
+  searchInput.addEventListener('input', function () {
+    var q = this.value.trim().toLowerCase();
+    var visible = 0;
+    rows.forEach(function (tr) {
+      var cells = tr.querySelectorAll('[data-search]');
+      var haystack = Array.prototype.map.call(cells, function (c) { return c.dataset.search; }).join(' ');
+      var match = !q || haystack.indexOf(q) !== -1;
+      tr.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    document.getElementById('no-results').style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "admin_base.html" %}
+{% set active = "rosters" %}
+{% block title %}Season Rollover{% endblock %}
+{% block heading %}Season Rollover{% endblock %}
+{% block subheading %}{{ team['name'] }} &mdash; move returning players into a new season{% endblock %}
+{% block content %}
+<div class="card" style="max-width:560px;">
+  <div class="callout">Next you'll mark each current player Active, Graduated, or Departed. Active players get carried into the new season automatically (same jersey/position/etc. — edit anything that changed after); Graduated/Departed players are left out of the new roster and their player record is updated everywhere, not just on this team.</div>
+  <form method="POST" action="/admin/rosters/rollover/preview">
+    <input type="hidden" name="team_id" value="{{ team['id'] }}">
+    <div class="field">
+      <label>Roster to roll over from</label>
+      <select name="from_season" required>
+        {% for s in seasons %}
+        <option value="{{ s }}">{{ s }} season</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label>New season</label>
+      <input type="text" name="new_season" placeholder="e.g. 2027" required>
+    </div>
+    <button class="btn" type="submit">Review Players &rarr;</button>
+    <a class="btn secondary" href="/admin/rosters?team={{ team['id'] }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

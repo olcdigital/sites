@@ -1,0 +1,229 @@
+{% extends "admin_base.html" %}
+{% set active = "schedule" %}
+{% block title %}Schedule & Results{% endblock %}
+{% block heading %}Schedule &amp; Results{% endblock %}
+{% block subheading %}games + opponents, joined live per team and season{% endblock %}
+{% block content %}
+<a href="/admin/schedule" style="font-size:12.5px; font-weight:600;">&larr; All Teams</a>
+
+{% if current_team %}
+<div class="callout" style="margin-top:14px;">You're editing <b>{{ current_team['name'] }}</b> only. To avoid mistakes, this screen deliberately never links to another sport's schedule &mdash; use All Teams above to switch.</div>
+
+<div class="card">
+  <div class="table-toolbar">
+    <div>
+      <h2 style="font-size:14px; margin:0 0 4px 0;">Schedule Settings — {{ current_team['name'] }}</h2>
+      <div class="footnote" style="margin:0;">Same underlying game data — these only change how it renders on the public Schedule page.</div>
+    </div>
+    <a href="/admin/schedule/events?team={{ current_team['id'] }}" style="font-size:12.5px; font-weight:600;">Manage Event Groups &rarr;</a>
+  </div>
+  <form method="POST" action="/admin/schedule/settings" id="schedule-settings-form" style="margin-top:10px;">
+    <input type="hidden" name="team_id" value="{{ current_team['id'] }}">
+    <input type="hidden" name="season" value="{{ current_season or '' }}">
+
+    <div style="display:flex; gap:18px; align-items:flex-end; flex-wrap:wrap; padding-bottom:14px; border-bottom:1px solid #eef1f5; margin-bottom:14px;">
+      <div class="field" style="margin-bottom:0;">
+        <label>Default View</label>
+        <select name="default_schedule_view" id="f-default-view" onchange="onDefaultViewChange(); this.form.submit()">
+          {% for key, label in schedule_views %}
+          <option value="{{ key }}" {{ 'selected' if current_team['default_schedule_view']==key }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Record Bar</label>
+        <select name="show_record_bar" onchange="this.form.submit()">
+          <option value="on" {{ 'selected' if current_team['show_record_bar'] }}>On</option>
+          <option value="off" {{ 'selected' if not current_team['show_record_bar'] }}>Off</option>
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Results Format</label>
+        <select name="results_format" onchange="this.form.submit()">
+          <option value="score" {{ 'selected' if current_team['results_format']=='score' }}>Traditional Score</option>
+          <option value="place_finish" {{ 'selected' if current_team['results_format']=='place_finish' }}>Team Finish (Place)</option>
+        </select>
+      </div>
+      {% if stat_categories %}
+      <div class="field" style="margin-bottom:0;">
+        <label>Live Scoring</label>
+        <select name="live_scoring_mode" onchange="this.form.submit()">
+          <option value="off" {{ 'selected' if current_team['live_scoring_mode']=='off' or not current_team['live_scoring_mode'] }}>Off</option>
+          <option value="manual_confirm" {{ 'selected' if current_team['live_scoring_mode']=='manual_confirm' }}>Webhook On, Confirm Box Score Before Publishing</option>
+          <option value="auto_publish" {{ 'selected' if current_team['live_scoring_mode']=='auto_publish' }}>Webhook On, Publish Box Score Automatically</option>
+        </select>
+        <div class="footnote" style="margin:4px 0 0 0;">A live push always updates the score in real time regardless of this setting &mdash; this only controls whether a final push's full box score needs your review first. The webhook URL is on each game's Edit screen.</div>
+      </div>
+      {% endif %}
+      <span class="footnote" style="margin:0 0 9px 0;">each changes immediately on select</span>
+    </div>
+
+    {% if stat_categories and current_team['live_scoring_mode'] != 'off' %}
+    <div class="field" style="margin-bottom:0;">
+      <form method="POST" action="/admin/schedule/settings/regenerate-token" onsubmit="return confirm('This immediately breaks any webhook URL this team\'s stats provider already has on file. Continue?');" style="display:inline;">
+        <input type="hidden" name="team_id" value="{{ current_team['id'] }}">
+        <input type="hidden" name="season" value="{{ current_season or '' }}">
+        <button class="btn secondary" type="submit" style="font-size:11.5px;">Regenerate Webhook Secret&hellip;</button>
+      </form>
+      <div class="footnote" style="margin:4px 0 0 0;">Only needed if a webhook URL leaked or a provider relationship ended &mdash; every game shares one secret per team, so this replaces it everywhere at once.</div>
+    </div>
+    {% endif %}
+
+    <div class="field" style="margin-bottom:0;">
+      <label>Views available to visitors on the public Schedule page</label>
+      <div class="footnote" style="margin:0 0 8px 0;">Visitors switch between whichever of these are checked. The current Default View is always included. Compact List is always text-only; every other view always shows the opponent logo.</div>
+      <div style="display:flex; flex-wrap:wrap; gap:14px;">
+        {% for key, label in schedule_views %}
+        <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:6px 10px;">
+          <input type="checkbox" name="enabled_schedule_views" value="{{ key }}" class="view-checkbox" data-view="{{ key }}"
+                 {{ 'checked' if key in current_enabled_views }}
+                 onchange="onEnabledViewsChange(); this.form.submit()">
+          {{ label }}{% if key == 'compact_list' %} <span class="footnote" style="margin:0;">(text only)</span>{% endif %}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if settings %}
+    {% if not (is_current_season and not settings['hidden']) %}
+    <div class="form-section-head" style="margin-top:6px;"><h3>Publishing</h3><div class="footnote" style="margin:2px 0 0 0;">A future schedule can exist and be edited without being visible on the public site yet.</div></div>
+    <div class="form-row">
+      <div class="field">
+        <label>Visibility</label>
+        <select name="hidden" onchange="this.form.submit()">
+          <option value="" {{ 'selected' if not settings['hidden'] }}>Visible now</option>
+          <option value="on" {{ 'selected' if settings['hidden'] }}>Hidden until published</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Scheduled Publish (optional)</label>
+        <input type="datetime-local" name="publish_at" value="{{ settings['publish_at'] or '' }}">
+      </div>
+      <div class="field">
+        <label>When it publishes&hellip;</label>
+        <select name="publish_makes_current">
+          <option value="" {{ 'selected' if not settings['publish_makes_current'] }}>Just make it visible</option>
+          <option value="on" {{ 'selected' if settings['publish_makes_current'] }}>Also make it Current</option>
+        </select>
+      </div>
+      <button class="btn secondary" type="submit" style="height:34px;">Save</button>
+    </div>
+    {% else %}
+    <div class="footnote" style="margin-top:12px;">This schedule is live and Current, so scheduled-publish options are hidden. Mark a different season Current, or hide this one, to bring them back.</div>
+    {% endif %}
+    {% endif %}
+  </form>
+</div>
+
+<script>
+  // Keep the Default View select and its checkbox in sync — the current
+  // default is always one of the enabled views (data-model.md §12).
+  function onDefaultViewChange() {
+    var val = document.getElementById('f-default-view').value;
+    document.querySelectorAll('.view-checkbox').forEach(function (cb) {
+      if (cb.dataset.view === val) cb.checked = true;
+    });
+  }
+  function onEnabledViewsChange() {
+    // If someone unchecks the current default, snap it back on before
+    // submitting — the server enforces this too, but this keeps the UI honest.
+    var defaultVal = document.getElementById('f-default-view').value;
+    document.querySelectorAll('.view-checkbox').forEach(function (cb) {
+      if (cb.dataset.view === defaultVal) cb.checked = true;
+    });
+  }
+</script>
+
+<div class="card">
+  <div class="table-toolbar">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <h2 style="font-size:14px; margin:0;">{{ current_team['name'] }} schedule</h2>
+      {% if seasons|length > 1 %}
+      <form method="GET" action="/admin/schedule">
+        <input type="hidden" name="team" value="{{ current_team['id'] }}">
+        <select name="season" onchange="this.form.submit()">
+          {% for s in seasons %}
+          <option value="{{ s }}" {{ 'selected' if s==current_season }}>{{ s }} season</option>
+          {% endfor %}
+        </select>
+      </form>
+      {% elif current_season %}
+      <span class="badge gray">{{ current_season }} season</span>
+      {% endif %}
+      {% if current_season %}
+        {% if is_current_season %}
+        <span class="badge green">Current</span>
+        {% else %}
+        <form method="POST" action="/admin/schedule/current" style="margin:0;">
+          <input type="hidden" name="team_id" value="{{ current_team['id'] }}">
+          <input type="hidden" name="season" value="{{ current_season }}">
+          <button class="btn secondary" type="submit" style="padding:5px 11px; font-size:12px;">Mark as Current</button>
+        </form>
+        {% endif %}
+        {% if settings and settings['hidden'] %}<span class="badge amber">Hidden</span>{% endif %}
+      {% endif %}
+    </div>
+    <div style="display:flex; gap:8px;">
+      {% if current_season %}
+      <a class="btn secondary" href="/admin/schedule/bulk_edit?team={{ current_team['id'] }}&season={{ current_season }}">Bulk Edit</a>
+      {% endif %}
+      <a class="btn" href="/admin/schedule/new?team={{ current_team['id'] }}">+ Add Game</a>
+    </div>
+  </div>
+  {% set live_stats_on = stat_categories and current_team['live_scoring_mode'] != 'off' %}
+  <table>
+    <thead><tr><th>Date</th><th>Opponent</th><th>Type</th><th>H/A</th><th>Location</th><th>Result</th>{% if live_stats_on %}<th>Stats</th>{% endif %}<th></th></tr></thead>
+    <tbody>
+      {% for g in games %}
+      <tr>
+        <td>
+          {{ g['date'] }}
+          {% if g['time_type'] == 'all_day' %} &middot; <span class="badge gray">All Day</span>
+          {% elif g['time_type'] == 'tba' %} &middot; <span class="badge gray">TBA</span>
+          {% elif g['time'] %} &middot; {{ g['time'] }}{% endif %}
+          {% if g['event_group_name'] %}<br><span class="badge blue">{{ g['event_group_name'] }}</span>{% endif %}
+        </td>
+        <td>
+          {% if g['is_neutral_host'] %}{{ g['opponent_display_name'] or g['opponent_name'] }} vs. {{ g['opponent_two_name'] }}
+          {% else %}{{ g['opponent_display_name'] or g['opponent_name'] }}{% endif %}
+        </td>
+        <td><span class="badge gray">{{ g['game_type']|replace('_',' ')|capitalize }}</span>{% if g['is_neutral_host'] %} <span class="badge amber">Neutral Host</span>{% endif %}</td>
+        <td>{{ g['home_away']|capitalize }}</td>
+        <td>{{ g['city'] ~ ', ' ~ g['state'] if g['city'] else '—' }}{% if g['facility'] %} &middot; {{ g['facility'] }}{% endif %}</td>
+        <td>
+          {% if g['is_neutral_host'] %}
+            {% if g['status']=='final' %}<span class="badge gray">{{ g['score_for'] }}–{{ g['score_against'] }}</span>{% else %}<span class="badge gray">{{ g['status']|capitalize }}</span>{% endif %}
+          {% elif g['result_type']=='no_result' %}
+            <span class="badge gray">No Result</span>
+          {% elif g['result_type']=='no_team_score' %}
+            <span class="badge gray">No Team Score</span>
+          {% elif current_team['results_format']=='place_finish' and g['status']=='final' and g['finish_place'] %}
+            <span class="badge blue">{{ ordinal(g['finish_place']) }} of {{ g['total_teams'] }}</span>
+          {% elif g['status'] == 'final' %}
+            {% set r = result_letter(g['score_for'], g['score_against']) %}
+            <span class="badge {{ 'green' if r=='W' else ('gray' if r=='T' else 'amber') }}">{{ r }} {{ g['score_for'] }}–{{ g['score_against'] }}</span>
+          {% else %}
+            <span class="badge gray">{{ g['status']|capitalize }}</span>
+          {% endif %}
+        </td>
+        {% if live_stats_on %}
+        <td>
+          {% if g['id'] in games_pending_review %}
+          <a href="/admin/schedule/{{ g['id'] }}/stats/import"><span class="badge amber">Pending Review</span></a>
+          {% elif g['id'] in games_with_stats %}
+          <a href="/admin/schedule/{{ g['id'] }}/stats/import"><span class="badge green">On File</span></a>
+          {% else %}
+          <a href="/admin/schedule/{{ g['id'] }}/stats/import" style="font-size:12px;">Import&hellip;</a>
+          {% endif %}
+        </td>
+        {% endif %}
+        <td><a href="/admin/schedule/{{ g['id'] }}/edit">Edit</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8">No games scheduled for this season yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "admin_base.html" %}
+{% set active = "settings" %}
+{% block title %}Users & Access{% endblock %}
+{% block heading %}Users &amp; Access{% endblock %}
+{% block subheading %}Real roles/permissions/scope rows, read straight out of SQLite{% endblock %}
+{% block content %}
+<a href="/admin/settings" style="font-size:12.5px; font-weight:600;">&larr; All Settings</a>
+<div class="callout" style="margin-top:14px;">
+  Each row below joins <code>users</code> → <code>roles</code> → <code>user_team_scopes</code> — this is the
+  configurable roles/permissions model from the spec, not a hardcoded SID/Coach/Contributor check.
+</div>
+<div class="card">
+  <table>
+    <thead><tr><th>Name</th><th>Role</th><th>Scope</th><th>Status</th><th>Byline Default</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.user['name'] }}<br><span style="color:#6b7280; font-size:11.5px;">{{ r.user['email'] }}</span></td>
+        <td><span class="badge {{ 'blue' if r.user['role_name']=='Admin' else 'gray' }}">{{ r.user['role_name'] }}</span></td>
+        <td>
+          {% for s in r.scopes %}
+            {% if s['scope_type'] == 'all_teams' %}
+              <span class="badge gray">All teams</span>
+            {% else %}
+              <span class="badge gray">{{ s['team_name'] }}</span>
+            {% endif %}
+          {% else %}
+            <span class="badge gray">All teams &amp; content</span>
+          {% endfor %}
+        </td>
+        <td><span class="badge {{ 'green' if r.user['status']=='active' else 'amber' }}">{{ r.user['status'] }}</span></td>
+        <td>
+          <form method="POST" action="/admin/users/{{ r.user['id'] }}/toggle_byline_default" style="display:flex; align-items:center; gap:8px; margin:0;">
+            <span class="badge {{ 'green' if r.user['show_byline_by_default'] else 'gray' }}">{{ 'On' if r.user['show_byline_by_default'] else 'Off' }}</span>
+            <button type="submit" class="btn secondary" style="padding:4px 9px; font-size:11.5px;">{{ 'Turn Off' if r.user['show_byline_by_default'] else 'Turn On' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="footnote" style="margin-top:10px;">Byline Default controls whether a new story this person starts pre-fills the Byline field with their name. It's always just a starting point — the field can be edited or cleared per story, and clearing it now actually saves blank instead of silently putting the name back.</div>
+</div>
+{% endblock %}

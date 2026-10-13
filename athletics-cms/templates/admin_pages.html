@@ -1,0 +1,23 @@
+{% extends "admin_base.html" %}
+{% set active = "pages" %}
+{% block title %}Pages{% endblock %}
+{% block heading %}Pages{% endblock %}
+{% block subheading %}pages + page_blocks — this is what the public site renderer reads{% endblock %}
+{% block content %}
+<div class="card">
+  <table>
+    <thead><tr><th>Page</th><th>URL</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for p in pages %}
+      <tr>
+        <td>{{ p['title'] }}</td>
+        <td>/site/{{ school['slug'] }}/{{ p['slug'] }}</td>
+        <td><span class="badge {{ 'green' if p['status']=='published' else 'amber' }}">{{ p['status'] }}</span></td>
+        <td><a href="/site/{{ school['slug'] }}/{{ p['slug'] }}" target="_blank">View →</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="footnote">The Page Builder's drag/drop editing UI isn't wired up in this prototype — pages and blocks are seeded directly in the database. The part being proven here is the renderer: real block rows → real public HTML.</div>
+{% endblock %}

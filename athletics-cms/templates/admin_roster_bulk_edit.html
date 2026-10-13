@@ -1,0 +1,51 @@
+{% extends "admin_base.html" %}
+{% set active = "rosters" %}
+{% block title %}Bulk Edit — {{ team['name'] }}{% endblock %}
+{% block heading %}Bulk Edit Roster{% endblock %}
+{% block subheading %}{{ team['name'] }} &mdash; {{ season }} season &middot; edit everyone at once, save together{% endblock %}
+{% block content %}
+<a href="/admin/rosters?team={{ team['id'] }}&season={{ season }}" style="font-size:12.5px; font-weight:600;">&larr; Back to Roster</a>
+
+<form method="POST" action="/admin/rosters/bulk_edit/commit" style="margin-top:14px;">
+  <input type="hidden" name="team_id" value="{{ team['id'] }}">
+  <input type="hidden" name="season" value="{{ season }}">
+  <input type="hidden" name="row_count" value="{{ roster|length }}">
+
+  <div class="card" style="overflow-x:auto;">
+    <table>
+      <thead><tr>
+        <th>Player</th><th>#</th><th>Pos</th><th>Class</th><th>Ht (ft)</th><th>Ht (in)</th><th>Weight</th>
+        <th>Bats/Throws</th><th>Custom 1</th><th>Custom 2</th><th>Custom 3</th><th>Hidden?</th>
+      </tr></thead>
+      <tbody>
+        {% for p in roster %}
+        {% set i = loop.index0 %}
+        <tr>
+          <td style="white-space:nowrap;">{{ p['first_name'] }} {{ p['last_name'] }}
+            <input type="hidden" name="row_{{ i }}_entry_id" value="{{ p['id'] }}">
+          </td>
+          <td><input type="text" name="row_{{ i }}_jersey_number" value="{{ p['jersey_number'] or '' }}" style="width:50px;"></td>
+          <td><input type="text" name="row_{{ i }}_position" value="{{ p['position'] or '' }}" style="width:70px;"></td>
+          <td><input type="text" name="row_{{ i }}_class_year" value="{{ p['class_year'] or '' }}" style="width:50px;"></td>
+          <td><input type="number" name="row_{{ i }}_height_ft" value="{{ p['height_ft'] if p['height_ft'] is not none else '' }}" style="width:55px;"></td>
+          <td><input type="number" name="row_{{ i }}_height_in" value="{{ p['height_in'] if p['height_in'] is not none else '' }}" style="width:55px;"></td>
+          <td><input type="text" name="row_{{ i }}_weight" value="{{ p['weight'] or '' }}" style="width:60px;"></td>
+          <td><input type="text" name="row_{{ i }}_bats_throws" value="{{ p['bats_throws'] or '' }}" style="width:60px;"></td>
+          <td><input type="text" name="row_{{ i }}_custom_field_1" value="{{ p['custom_field_1'] or '' }}" style="width:90px;"></td>
+          <td><input type="text" name="row_{{ i }}_custom_field_2" value="{{ p['custom_field_2'] or '' }}" style="width:90px;"></td>
+          <td><input type="text" name="row_{{ i }}_custom_field_3" value="{{ p['custom_field_3'] or '' }}" style="width:90px;"></td>
+          <td style="text-align:center;"><input type="checkbox" name="row_{{ i }}_hidden" {{ 'checked' if p['hidden'] }}></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="12">No roster entries for this team/season yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if roster %}
+  <button class="btn" type="submit">Save All Changes</button>
+  <a class="btn secondary" href="/admin/rosters?team={{ team['id'] }}&season={{ season }}">Cancel</a>
+  {% endif %}
+</form>
+{% endblock %}

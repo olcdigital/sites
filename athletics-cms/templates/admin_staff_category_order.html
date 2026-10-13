@@ -1,0 +1,82 @@
+{% extends "admin_base.html" %}
+{% set active = "staff" %}
+{% block title %}Reorder — {{ display_name }}{% endblock %}
+{% block heading %}Reorder Staff — {{ display_name }}{% endblock %}
+{% block subheading %}Drag to set the order staff display within this category on the public Staff Directory{% endblock %}
+{% block content %}
+<a href="/admin/staff/categories" style="font-size:12.5px; font-weight:600;">&larr; Back to Categories</a>
+
+<div class="card" style="max-width:600px; margin-top:14px;">
+  <div id="member-list" style="display:flex; flex-direction:column; gap:6px;">
+    {% for m in members %}
+    <div class="member-row" data-id="{{ m['staff_id'] }}" draggable="true"
+         style="display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 12px; cursor:grab;">
+      <span style="color:#94a3b8; font-size:16px; line-height:1;" aria-hidden="true">&#9776;</span>
+      <span class="badge blue" style="min-width:22px; text-align:center;">{{ loop.index }}</span>
+      <span style="flex:1; min-width:0;">
+        <div style="font-weight:600; font-size:13px;">{{ m['name'] }}</div>
+        {% if m['title'] %}<div class="footnote" style="margin:1px 0 0 0;">{{ m['title'] }}</div>{% endif %}
+      </span>
+    </div>
+    {% else %}
+    <p class="footnote">No one is assigned to this category yet.</p>
+    {% endfor %}
+  </div>
+
+  {% if members %}
+  <button class="btn" type="button" onclick="saveOrder()" style="margin-top:14px;">Save Order</button>
+  {% endif %}
+</div>
+
+<form id="save-form" method="POST" action="/admin/staff/categories/{{ category['id'] }}/order/save" style="display:none;">
+  <input type="hidden" name="order_json" id="order_json">
+</form>
+
+<script>
+  var list = document.getElementById('member-list');
+  var dragEl = null;
+
+  function renumber() {
+    list.querySelectorAll('.member-row').forEach(function (row, i) {
+      row.querySelector('.badge').textContent = i + 1;
+    });
+  }
+
+  list.querySelectorAll('.member-row').forEach(function (row) {
+    row.addEventListener('dragstart', function () { dragEl = row; row.style.opacity = '0.4'; });
+    row.addEventListener('dragend', function () { row.style.opacity = ''; dragEl = null; renumber(); });
+  });
+
+  list.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    if (!dragEl) return;
+    var after = getRowAfter(e.clientY);
+    if (after == null) {
+      list.appendChild(dragEl);
+    } else if (after !== dragEl) {
+      list.insertBefore(dragEl, after);
+    }
+  });
+
+  function getRowAfter(y) {
+    var rows = [].slice.call(list.querySelectorAll('.member-row')).filter(function (r) { return r !== dragEl; });
+    var closest = { offset: -Infinity, element: null };
+    rows.forEach(function (row) {
+      var box = row.getBoundingClientRect();
+      var offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        closest = { offset: offset, element: row };
+      }
+    });
+    return closest.element;
+  }
+
+  function saveOrder() {
+    var rows = list.querySelectorAll('.member-row');
+    var order = [];
+    rows.forEach(function (row) { order.push(parseInt(row.dataset.id, 10)); });
+    document.getElementById('order_json').value = JSON.stringify(order);
+    document.getElementById('save-form').submit();
+  }
+</script>
+{% endblock %}

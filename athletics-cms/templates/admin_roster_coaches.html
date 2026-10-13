@@ -1,0 +1,87 @@
+{% extends "admin_base.html" %}
+{% set active = "rosters" %}
+{% block title %}Coaches & Staff — {{ team['name'] }}{% endblock %}
+{% block heading %}{{ team['name'] }} Coaches &amp; Staff{% endblock %}
+{% block subheading %}{{ season }} season &mdash; tied to this specific roster{% endblock %}
+{% block content %}
+<a href="/admin/rosters?team={{ team['id'] }}&season={{ season }}" style="font-size:12.5px; font-weight:600;">&larr; Back to Roster</a>
+
+<div class="card" style="margin-top:14px;">
+  <div class="tabs" style="margin-bottom:14px;">
+    <a href="/admin/rosters?team={{ team['id'] }}&season={{ season }}">Roster Settings</a>
+    <a class="active" href="#">Coaches &amp; Staff</a>
+  </div>
+  <table>
+    <thead><tr><th>Name</th><th>Title</th><th>Head Coach</th><th>Visibility</th><th></th></tr></thead>
+    <tbody>
+      {% for c in coaches %}
+      <tr>
+        <td><a href="/admin/staff/{{ c['staff_id'] }}">{{ c['name'] }}</a></td>
+        <td>{{ c['title'] }}</td>
+        <td>
+          {% if c['is_head_coach'] %}<span class="badge blue">Head Coach</span>
+          {% else %}
+          <form method="POST" action="/admin/rosters/coaches/{{ c['id'] }}/set_head" style="margin:0;">
+            <button type="submit" class="btn secondary" style="font-size:11.5px; padding:4px 9px;">Make Head Coach</button>
+          </form>
+          {% endif %}
+        </td>
+        <td>
+          <form method="POST" action="/admin/rosters/coaches/{{ c['id'] }}/toggle_hidden" style="margin:0;">
+            <button type="submit" class="btn secondary" style="font-size:11.5px; padding:4px 9px;">{{ 'Unhide' if c['hidden'] else 'Hide' }}</button>
+          </form>
+        </td>
+        <td>
+          <form method="POST" action="/admin/rosters/coaches/{{ c['id'] }}/remove" onsubmit="return confirm('Remove {{ c['name'] }} from this roster? Their staff record is kept.');" style="margin:0;">
+            <button type="submit" style="background:none; border:none; color:#b91c1c; font-size:12.5px; cursor:pointer; padding:0; font-family:inherit;">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No coaches attached to this roster yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="footnote" style="margin-top:8px;">Head Coach here is what feeds that person's Career Record on their <a href="/admin/staff">Staff Directory</a> profile — it tallies every final, record-eligible game across every team/season they're flagged Head Coach for.</div>
+</div>
+
+<div class="card">
+  <h2 style="font-size:14px; margin-top:0;">Add a Coach or Staff Member</h2>
+  {% if available_staff %}
+  <form method="POST" action="/admin/rosters/coaches/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px;">
+    <input type="hidden" name="team_id" value="{{ team['id'] }}">
+    <input type="hidden" name="season" value="{{ season }}">
+    <div class="field" style="margin-bottom:0; flex:1; min-width:220px;">
+      <label>From Staff Directory</label>
+      <select name="staff_id">
+        {% for s in available_staff %}
+        <option value="{{ s['id'] }}">{{ s['first_name'] }} {{ s['last_name'] }}{% if s['title'] %} &mdash; {{ s['title'] }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn secondary" type="submit">+ Add to Roster</button>
+  </form>
+  {% else %}
+  <p class="footnote">Every staff member on file is already on this roster.</p>
+  {% endif %}
+
+  <div class="footnote" style="margin-bottom:8px;">Not on file yet? Add them here and they'll be attached to this roster right away — fill in the rest of their profile (email, photo, Staff Directory categories, etc.) from the <a href="/admin/staff">Staff Directory</a> afterward.</div>
+  <form method="POST" action="/admin/rosters/coaches/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+    <input type="hidden" name="team_id" value="{{ team['id'] }}">
+    <input type="hidden" name="season" value="{{ season }}">
+    <div class="field" style="margin-bottom:0;">
+      <label>First Name</label>
+      <input type="text" name="new_first_name" placeholder="First name">
+    </div>
+    <div class="field" style="margin-bottom:0;">
+      <label>Last Name</label>
+      <input type="text" name="new_last_name" placeholder="Last name">
+    </div>
+    <div class="field" style="margin-bottom:0;">
+      <label>Title</label>
+      <input type="text" name="new_title" placeholder="e.g. Assistant Coach">
+    </div>
+    <button class="btn secondary" type="submit">+ Add New Staff Member</button>
+  </form>
+</div>
+{% endblock %}

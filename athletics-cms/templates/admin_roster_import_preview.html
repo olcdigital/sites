@@ -1,0 +1,77 @@
+{% extends "admin_base.html" %}
+{% set active = "rosters" %}
+{% block title %}Review Import{% endblock %}
+{% block heading %}Review Import{% endblock %}
+{% block subheading %}{{ current_team['name'] if current_team else '' }} &mdash; {{ season }} season &middot; {{ preview_rows|length }} player{{ 's' if preview_rows|length != 1 }} parsed{% endblock %}
+{% block content %}
+<div class="callout">Nothing has been saved yet. Fix anything that parsed wrong, confirm any name-match below, then Confirm Import at the bottom. Clear a row's First/Last Name to skip it entirely.</div>
+
+<form method="POST" action="/admin/rosters/import/commit">
+  <input type="hidden" name="team_id" value="{{ team_id }}">
+  <input type="hidden" name="season" value="{{ season }}">
+  <input type="hidden" name="row_count" value="{{ preview_rows|length }}">
+
+  {% for pr in preview_rows %}
+  {% set i = loop.index0 %}
+  <div class="card">
+    <div class="form-row">
+      <div class="field"><label>First Name</label><input type="text" name="row_{{ i }}_first_name" value="{{ pr.row.first_name }}"></div>
+      <div class="field"><label>Last Name</label><input type="text" name="row_{{ i }}_last_name" value="{{ pr.row.last_name }}"></div>
+      <div class="field"><label>Jersey #</label><input type="text" name="row_{{ i }}_jersey_number" value="{{ pr.row.jersey_number }}"></div>
+      <div class="field"><label>Position</label><input type="text" name="row_{{ i }}_position" value="{{ pr.row.position }}"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Class Year</label><input type="text" name="row_{{ i }}_class_year" value="{{ pr.row.class_year }}"></div>
+      <div class="field"><label>Height</label><input type="text" name="row_{{ i }}_height" value="{{ pr.row.height }}"></div>
+      <div class="field"><label>Weight</label><input type="text" name="row_{{ i }}_weight" value="{{ pr.row.weight }}"></div>
+      <div class="field"><label>Hometown</label><input type="text" name="row_{{ i }}_hometown" value="{{ pr.row.hometown }}"></div>
+      <div class="field"><label>High School</label><input type="text" name="row_{{ i }}_high_school" value="{{ pr.row.high_school }}"></div>
+    </div>
+
+    {% if pr.matches %}
+    <div class="callout" style="background:#fffbeb; border-color:#fde68a; color:#78350f; margin-bottom:12px;">
+      <b>{{ pr.matches|length }} existing player{{ 's' if pr.matches|length != 1 }} named "{{ pr.row.first_name }} {{ pr.row.last_name }}" found.</b>
+      Is this the same person (a returning or multi-sport player) or a different person who happens to share the name?
+    </div>
+    <input type="hidden" name="row_{{ i }}_mode" id="row-{{ i }}-mode" value="{{ pr.default_mode }}">
+    <div id="row-{{ i }}-toggle" style="display:flex; gap:6px; margin-bottom:10px;">
+      <button type="button" class="tt-btn {{ 'active' if pr.default_mode=='merge' }}" data-val="merge" onclick="setRowMode({{ i }}, 'merge')">Same Player (Merge)</button>
+      <button type="button" class="tt-btn {{ 'active' if pr.default_mode=='new' }}" data-val="new" onclick="setRowMode({{ i }}, 'new')">Different Player (New)</button>
+    </div>
+    <div id="row-{{ i }}-merge-wrap" style="display:{{ 'block' if pr.default_mode=='merge' else 'none' }};">
+      {% if pr.matches|length == 1 %}
+      <input type="hidden" name="row_{{ i }}_athlete_id" value="{{ pr.matches[0].id }}">
+      <div class="footnote" style="margin:0;">Will merge with the existing record{% if pr.matches[0].current_teams %} (currently: {{ pr.matches[0].current_teams }}){% endif %} &mdash; only a new roster spot on {{ current_team['name'] if current_team else 'this team' }} is added, their player record isn't duplicated.</div>
+      {% else %}
+      <div class="field" style="max-width:none;">
+        <label>Which existing record?</label>
+        <select name="row_{{ i }}_athlete_id">
+          {% for m in pr.matches %}
+          <option value="{{ m.id }}">{{ m.first_name }} {{ m.last_name }}{% if m.hometown %} &mdash; {{ m.hometown }}{% endif %}{% if m.current_teams %} (currently: {{ m.current_teams }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="callout">Nothing parsed from that paste.</div>
+  {% endfor %}
+
+  {% if preview_rows %}
+  <button class="btn" type="submit">Confirm Import ({{ preview_rows|length }} players)</button>
+  <a class="btn secondary" href="/admin/rosters/import?team={{ team_id }}">&larr; Start Over</a>
+  {% endif %}
+</form>
+
+<script>
+  function setRowMode(i, val) {
+    document.getElementById('row-' + i + '-mode').value = val;
+    document.querySelectorAll('#row-' + i + '-toggle .tt-btn').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.val === val);
+    });
+    document.getElementById('row-' + i + '-merge-wrap').style.display = (val === 'merge') ? 'block' : 'none';
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "admin_base.html" %}
+{% set active = "news" %}
+{% block title %}News{% endblock %}
+{% block heading %}News{% endblock %}
+{% block subheading %}Stories, recaps, and announcements — real articles rows, filterable the same way the public News Archive is{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="table-toolbar">
+    <form method="GET" action="/admin/news" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <input type="text" name="q" value="{{ search_query }}" placeholder="Search title, subheadline, author…" style="padding:7px 10px; border:1px solid var(--border); border-radius:6px; font-size:12.5px; min-width:200px;">
+      <button type="submit" class="btn secondary" style="padding:7px 12px;">Search</button>
+      <select name="status" onchange="this.form.submit()">
+        <option value="">All Statuses</option>
+        {% for value, label in statuses %}
+        <option value="{{ value }}" {{ 'selected' if status_filter==value }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select name="category" onchange="this.form.submit()">
+        <option value="">All Categories</option>
+        {% for value, label in categories %}
+        <option value="{{ value }}" {{ 'selected' if category_filter==value }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select name="team" onchange="this.form.submit()">
+        <option value="">All Teams</option>
+        {% for t in teams %}
+        <option value="{{ t['id'] }}" {{ 'selected' if team_filter==t['id'] }}>{{ t['name'] }}</option>
+        {% endfor %}
+      </select>
+      {% if seasons %}
+      <select name="season" onchange="this.form.submit()">
+        <option value="">All Seasons</option>
+        {% for s in seasons %}
+        <option value="{{ s }}" {{ 'selected' if season_filter==s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      {% if status_filter or category_filter or team_filter or season_filter or search_query %}
+      <a href="/admin/news" style="font-size:12px;">Clear filters</a>
+      {% endif %}
+    </form>
+    <div style="display:flex; gap:8px;">
+      <a class="btn secondary" href="/admin/news/rankings">Manage Rankings</a>
+      <a class="btn" href="/admin/news/new">+ New Story</a>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Title</th><th>Category</th><th>Team</th><th>Season</th><th>Status</th><th>Published</th><th></th></tr></thead>
+    <tbody>
+      {% for a in articles %}
+      <tr>
+        <td>
+          {{ a['title'] }}
+          {% if a['linked_game_id'] %}<div class="footnote" style="margin:2px 0 0 0;">Recap of a game</div>{% endif %}
+        </td>
+        <td>{{ ARTICLE_CATEGORY_LABELS.get(a['category'], a['category']) }}</td>
+        <td>{{ a['team_name'] or 'School-wide' }}</td>
+        <td>{{ a['season'] or '—' }}</td>
+        <td>
+          {% if a['status'] == 'published' and not a['hidden'] %}
+          <span class="badge green">Live</span>
+          {% elif a['status'] == 'published' %}
+          <span class="badge blue">Scheduled</span>
+          {% elif a['status'] == 'pending_review' %}
+          <span class="badge amber">Pending Review</span>
+          {% else %}
+          <span class="badge gray">Draft</span>
+          {% endif %}
+        </td>
+        <td>{{ a['published_at'] or '—' }}</td>
+        <td style="white-space:nowrap;">
+          <a href="/admin/news/{{ a['id'] }}/edit">Edit</a>
+          {% if a['status']=='published' and not a['hidden'] %}&middot; <a href="/site/{{ school['slug'] }}/news/{{ a['slug'] }}" target="_blank">View →</a>{% endif %}
+          &middot;
+          <form method="POST" action="/admin/news/{{ a['id'] }}/delete" style="display:inline;" onsubmit="return confirm('Delete this story? This can\'t be undone.');">
+            <button type="submit" style="background:none; border:none; color:#dc2626; font-size:12.5px; cursor:pointer; padding:0; font-family:inherit;">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7">No stories match these filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="footnote">Publishing directly requires the <code>publish_news</code> permission (Admin, and Manager by default) — anyone else's stories land in Pending Review for one of those roles to approve. The public <a href="/site/{{ school['slug'] }}/news">News Archive</a> is system-generated from this same table (data-model.md &sect;7), not a page you build by hand.</div>
+{% endblock %}

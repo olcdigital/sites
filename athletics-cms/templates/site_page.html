@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ page['title'] }} — {{ school['name'] }}</title>
+<style>
+  :root{ --primary:{{ school['primary_color'] }}; --primary-dark:#0b3319; --accent:{{ school['secondary_color'] }}; --bg:#f9faf7; }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:#1c1c1c; font-size:14px;}
+  h1,h2,h3{text-transform:uppercase; letter-spacing:.02em; font-family:Georgia, 'Times New Roman', serif;}
+  header.site-header{background:#fff; border-bottom:3px solid var(--primary); display:flex; align-items:center; justify-content:space-between; padding:14px 32px;}
+  .site-logo{display:flex; align-items:center; gap:10px; font-weight:700; color:var(--primary);}
+  .mark{width:32px; height:32px; border-radius:50%; background:var(--primary); color:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .site-nav{display:flex; gap:22px; font-size:12.5px; font-weight:600; color:#334155; text-transform:uppercase;}
+  .site-nav a{color:#334155; text-decoration:none;}
+  .hero{background:linear-gradient(135deg, var(--primary), var(--primary-dark)); color:#fff; padding:56px 40px; text-align:center;}
+  .hero .eyebrow{color:var(--accent); font-size:12px; font-weight:700; letter-spacing:.12em; margin-bottom:8px;}
+  .hero h1{font-size:34px; margin:0 0 8px 0; color:#fff;}
+  .hero p{color:#dbe7de; margin:0 0 18px 0;}
+  .hero-btn{display:inline-block; padding:10px 18px; border-radius:6px; font-size:12.5px; font-weight:700; text-transform:uppercase; margin:0 6px;}
+  .hero-btn.primary{background:var(--accent); color:#1c1c1c;}
+  .hero-btn.secondary{background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.4);}
+  .section{padding:36px 40px;}
+  .section h2{font-size:20px; color:var(--primary); margin:0 0 18px 0;}
+  .news-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:18px;}
+  .news-card{background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px;}
+  .news-tag{display:inline-block; background:var(--primary); color:#fff; font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; text-transform:uppercase; margin-bottom:8px;}
+  .news-card h3{font-size:15px; margin:0 0 6px 0; text-transform:none; font-family:inherit;}
+  .news-card p{font-size:12.5px; color:#64748b; line-height:1.6; margin:0;}
+  .news-card a.news-link{color:inherit; text-decoration:none; display:block;}
+  .news-card a.news-link:hover h3{color:var(--primary);}
+  .news-thumb{width:100%; height:120px; object-fit:cover; border-radius:6px; margin-bottom:10px; background:#eef1f6;}
+  .news-date{font-size:11px; color:#94a3b8; margin-top:8px;}
+  .news-archive-link{display:inline-block; margin-top:20px; font-size:12.5px; font-weight:700; color:var(--primary); text-decoration:none;}
+  .schedule-row{display:grid; grid-template-columns:110px 1fr 90px 110px; align-items:center; gap:10px; background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:12px 16px; margin-bottom:8px; font-size:12.5px;}
+  .schedule-row .date{font-weight:700; color:var(--primary);}
+  .schedule-row .result{font-weight:700; text-align:right;}
+  .roster-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:16px;}
+  .player-card{background:#fff; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden;}
+  .player-card .photo{height:100px; background:repeating-linear-gradient(45deg,#eef1f6,#eef1f6 10px,#e7eaf0 10px,#e7eaf0 20px); position:relative;}
+  .player-card .num{position:absolute; top:8px; left:8px; background:var(--primary); color:#fff; width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px;}
+  .player-card .info{padding:10px 12px;}
+  .player-card .info b{display:block; font-size:13px;}
+  .player-card .info span{display:block; font-size:11px; color:#64748b;}
+
+  /* Photo roster template — bigger photo-forward tiles */
+  .roster-photo-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:20px;}
+  .player-photo-card{background:#fff; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden;}
+  .photo-wrap{position:relative; height:220px; background:#eef1f6;}
+  .photo-img{width:100%; height:220px; object-fit:cover; display:block;}
+  .photo-wrap .initials{width:100%; height:220px; display:flex; align-items:center; justify-content:center; background:var(--primary); color:#fff; font-size:36px; font-weight:800; font-family:Georgia,serif;}
+  .num-badge{position:absolute; top:10px; left:10px; background:rgba(15,23,42,.75); color:#fff; width:30px; height:30px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;}
+  .player-photo-card .info{padding:12px 14px;}
+  .player-photo-card .info b{display:block; font-size:14.5px;}
+  .player-photo-card .info span{display:block; font-size:11.5px; color:#64748b;}
+
+  /* Table roster template — the standard dense roster table */
+  .roster-table{width:100%; border-collapse:collapse; background:#fff; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; font-size:13px;}
+  .roster-table th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:#64748b; padding:10px 12px; background:#f8fafc; border-bottom:1px solid #e5e7eb;}
+  .roster-table td{padding:10px 12px; border-bottom:1px solid #eef1f5;}
+  .roster-table tr:last-child td{border-bottom:none;}
+
+  /* Player social/NIL links — shown on Card and Photo templates only */
+  .player-links{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px;}
+  .player-link-badge{font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; padding:3px 7px; border-radius:10px; background:#f1f5f9; color:#475569; text-decoration:none;}
+  .player-link-badge.nil{background:var(--accent); color:#1c1c1c;}
+  .sponsor-strip{background:#fff; border-top:1px solid #e5e7eb; padding:20px 40px; display:flex; align-items:center; justify-content:center; gap:30px; flex-wrap:wrap;}
+  .sponsor-strip .logo{padding:9px 18px; background:#f1f5f9; border-radius:6px; font-size:11.5px; font-weight:700; color:#475569;}
+  footer.site-footer{background:var(--primary-dark); color:#cbd5e1; text-align:center; padding:16px; font-size:11.5px;}
+
+  /* schedule header row: title + tz toggle */
+  .sched-head{display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px;}
+  .sched-head h2{margin:0;}
+  .tz-toggle{display:flex; align-items:center; gap:6px; font-size:11px; color:#64748b; text-transform:uppercase; font-weight:600; letter-spacing:.03em;}
+  .tz-toggle select{font-size:11.5px; padding:4px 6px; border-radius:5px; border:1px solid #cbd5e1; background:#fff; color:#1c1c1c; text-transform:none; font-weight:600;}
+
+  /* record bar */
+  .record-bar{display:flex; flex-wrap:wrap; gap:0; background:#fff; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:18px; overflow:hidden;}
+  .rb-stat{flex:1 1 100px; text-align:center; padding:10px 8px; border-right:1px solid #eef1f5;}
+  .rb-stat:last-child{border-right:none;}
+  .rb-stat .v{font-size:16px; font-weight:800; color:var(--primary); font-family:Georgia,serif;}
+  .rb-stat .k{font-size:9.5px; color:#94a3b8; text-transform:uppercase; letter-spacing:.04em; margin-top:2px;}
+
+  /* shared badges/pills used across templates */
+  .pill{display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.02em;}
+  .pill.win{background:#ecfdf5; color:#059669;} .pill.loss{background:#fef2f2; color:#b91c1c;} .pill.tie{background:#f1f5f9; color:#64748b;}
+  .pill.gray{background:#f1f5f9; color:#64748b;} .pill.amber{background:#fffbeb; color:#b45309;} .pill.blue{background:#eff6ff; color:#1d4ed8;}
+  .pill.live{background:#fef2f2; color:#b91c1c;}
+  .pill.live::before{content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:#dc2626; margin-right:5px; vertical-align:middle; animation:pulse-live 1.4s ease-in-out infinite;}
+  @keyframes pulse-live{0%,100%{opacity:1;} 50%{opacity:.35;}}
+  .event-header{font-size:12px; font-weight:700; color:var(--primary); text-transform:uppercase; letter-spacing:.03em; margin:18px 0 8px 0; padding-bottom:4px; border-bottom:2px solid var(--primary);}
+  .event-header:first-child{margin-top:0;}
+  .opp-link{color:inherit; text-decoration:underline; text-decoration-color:#cbd5e1;}
+  .game-time{color:#94a3b8;}
+
+  /* results_grid schedule template */
+  .results-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:16px;}
+  .result-card{background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px; text-align:center;}
+  .result-card .opp{font-size:12.5px; color:#64748b; margin-bottom:6px;}
+  .result-card .score{font-size:28px; font-weight:800; font-family:Georgia,serif;}
+  .result-card .score.win{color:#059669;} .result-card .score.loss{color:#b91c1c;} .result-card .score.tie{color:#64748b;}
+  .result-card .date{font-size:11px; color:#94a3b8; margin-top:6px;}
+  .result-card .time{font-size:11px; color:#94a3b8;}
+  .result-card .upcoming{color:#94a3b8; font-size:13px; padding-top:8px;}
+
+  /* calendar view */
+  .cal-month{margin-bottom:26px;}
+  .cal-month h3{font-size:15px; color:var(--primary); margin-bottom:10px; text-transform:none; font-family:inherit;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+  .cal-dow{font-size:10.5px; font-weight:700; color:#94a3b8; text-align:center; text-transform:uppercase; padding:4px 0;}
+  .cal-cell{min-height:64px; background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:4px; font-size:10.5px;}
+  .cal-cell.empty{background:transparent; border:none;}
+  .cal-cell .daynum{font-weight:700; color:#94a3b8; margin-bottom:3px;}
+  .cal-cell .game{background:var(--primary); color:#fff; border-radius:4px; padding:2px 4px; margin-bottom:2px; font-size:9.5px; line-height:1.3;}
+  .cal-cell .game.final{background:#475569;}
+  .cal-cell .game .evt{opacity:.8; font-style:italic;}
+
+  /* --- Round E: school-centric schedule views (data-model.md §12) --- */
+
+  /* Most athletics sites don't run the schedule the full width of the
+     page (see thesundevils.com/sports/volleyball/schedule) — this narrows
+     just the schedule block's content to a centered column, independent
+     of the wider .section padding everything else on the page uses. */
+  .sched-narrow{max-width:720px; margin:0 auto;}
+
+  /* opponent logo, with initials-monogram fallback so a missing logo_url
+     never renders a broken image (always resolved from the opponent
+     record — never assigned per-game) */
+  .opp-logo{border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:#f1f5f9;}
+  .opp-logo img{width:100%; height:100%; object-fit:contain;}
+  .opp-logo.initials{background:var(--primary); color:#fff; font-weight:800; font-family:Georgia,serif;}
+  .opp-logo.xs{width:15px; height:15px; font-size:6.5px;}
+  .opp-logo.sm{width:26px; height:26px; font-size:10px;}
+  .opp-logo.md{width:44px; height:44px; font-size:14px;}
+  .opp-logo.lg{width:72px; height:72px; font-size:20px;}
+
+  /* view switcher (only shown when a team has >1 view enabled) */
+  .view-switcher{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px;}
+  .view-switcher button{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; padding:7px 14px; border-radius:20px; border:1px solid #e5e7eb; background:#fff; color:#475569; cursor:pointer; font-family:inherit;}
+  .view-switcher button.active{background:var(--primary); color:#fff; border-color:var(--primary);}
+  .sched-view{display:none;}
+  .sched-view.active{display:block;}
+  .sched-cta{margin-top:12px;}
+  .sched-cta a{color:var(--primary); font-weight:700; font-size:12.5px; text-decoration:none;}
+
+  /* every game entry, across every view, opens the game detail card */
+  .game-clickable{cursor:pointer;}
+
+  /* Classic Athletics — a fresher, narrower take: a plain row list (day
+     chip + opponent + result) with hairline dividers instead of boxed
+     cards, closer to how most college athletics sites actually lay out
+     a schedule. */
+  .classic-row{display:flex; align-items:center; gap:14px; padding:13px 6px; border-bottom:1px solid #eef1f5; font-size:12.5px; transition:background .1s;}
+  .classic-row:hover{background:#f8faf7;}
+  .classic-row .date-chip{width:46px; flex-shrink:0; text-align:center; line-height:1.15;}
+  .classic-row .date-chip .dow{font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.03em;}
+  .classic-row .date-chip .daynum{font-size:19px; font-weight:800; color:var(--primary); font-family:Georgia,serif;}
+  .classic-row .date-chip .mon{font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.03em;}
+  .classic-row .opp-cell{display:flex; align-items:center; gap:10px; flex:1; min-width:0;}
+  .classic-row .opp-text{font-weight:600;}
+  .classic-row .time-sub{font-size:11px; color:#94a3b8; margin-top:1px;}
+  .classic-row .result{font-weight:700; text-align:right; flex-shrink:0;}
+
+  /* Matchup Cards */
+  .matchup-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:14px;}
+  .matchup-card{background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px; text-align:center; transition:box-shadow .1s, border-color .1s;}
+  .matchup-card:hover{border-color:#cbd5e1; box-shadow:0 2px 10px rgba(15,23,42,.06);}
+  .matchup-card .vs-row{display:flex; align-items:center; justify-content:center; margin-bottom:10px;}
+  .matchup-card .opp-name{font-size:13.5px; font-weight:700; margin-bottom:4px;}
+  .matchup-card .meta{font-size:11px; color:#64748b;}
+
+  /* Compact List */
+  .compact-month{margin-bottom:18px;}
+  .compact-month h3{font-size:12.5px; color:var(--primary); margin:0 0 8px 0; text-transform:uppercase; letter-spacing:.03em; font-family:inherit;}
+  .compact-row{display:flex; align-items:center; gap:10px; padding:7px 6px; border-bottom:1px solid #eef1f5; font-size:12px; transition:background .1s;}
+  .compact-row:hover{background:#f8faf7;}
+  .compact-row .date{width:44px; flex-shrink:0; color:#64748b; font-weight:600;}
+  .compact-row .opp{flex:1; display:flex; align-items:center; gap:7px; min-width:0;}
+  .compact-row .res{font-weight:700;}
+
+  /* Timeline */
+  .timeline{position:relative; padding-left:30px;}
+  .timeline:before{content:''; position:absolute; left:12px; top:6px; bottom:6px; width:2px; background:#e5e7eb;}
+  .timeline-item{position:relative; margin-bottom:20px;}
+  .timeline-item .marker{position:absolute; left:-30px; top:0;}
+  .timeline-item .body{background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:12px 16px; transition:background .1s;}
+  .timeline-item .body:hover{background:#f8faf7;}
+  .timeline-item .date{font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase; margin-bottom:4px;}
+  .timeline-item .row{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .timeline-item .opp-cell{display:flex; align-items:center; gap:8px;}
+
+  /* Calendar — individual games within a day cell are their own click
+     targets, so the detail card opens for the game you tapped. */
+  .cal-cell .game{cursor:pointer; transition:opacity .1s;}
+  .cal-cell .game:hover{opacity:.85;}
+
+  /* Season Story */
+  .story-next{background:linear-gradient(135deg, var(--primary), var(--primary-dark)); color:#fff; border-radius:14px; padding:26px; margin-bottom:22px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; cursor:pointer;}
+  .story-next .label{color:var(--accent); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;}
+  .story-next h3{color:#fff; font-size:22px; margin:0 0 4px 0;}
+  .story-next .meta{color:#dbe7de; font-size:12.5px;}
+  .story-upcoming-strip{display:flex; gap:12px; overflow-x:auto; padding-bottom:8px; margin-bottom:24px;}
+  .story-upcoming-strip .u-card{flex:0 0 130px; background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:10px; text-align:center; font-size:11px; transition:box-shadow .1s;}
+  .story-upcoming-strip .u-card:hover{box-shadow:0 2px 10px rgba(15,23,42,.06);}
+  .story-postseason{background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:18px; margin-top:22px;}
+  .story-postseason h3{color:#b45309; font-size:13px; margin:0 0 10px 0; text-transform:uppercase; font-family:inherit;}
+
+  /* Game detail card — click-to-open on every view */
+  .game-modal-overlay{display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:1000; align-items:center; justify-content:center; padding:20px;}
+  .game-modal-overlay.open{display:flex;}
+  .game-modal{background:#fff; border-radius:14px; max-width:460px; width:100%; padding:26px; position:relative; max-height:85vh; overflow-y:auto;}
+  .game-modal-close{position:absolute; top:10px; right:12px; background:none; border:none; font-size:24px; line-height:1; color:#94a3b8; cursor:pointer; padding:4px;}
+  .gm-head{display:flex; align-items:center; gap:14px; margin-bottom:16px;}
+  .gm-head h3{margin:0; font-size:16px; text-transform:none; font-family:inherit; line-height:1.3;}
+  .gm-meta{font-size:12.5px; color:#64748b; margin-bottom:14px; line-height:1.7;}
+  .gm-links{display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;}
+  .gm-links a{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; padding:8px 12px; border-radius:6px; background:var(--primary); color:#fff; text-decoration:none;}
+  .gm-links a.secondary{background:#f1f5f9; color:#334155;}
+  .gm-stats{width:100%; border-collapse:collapse; margin-top:16px; font-size:12.5px;}
+  .gm-stats th{text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:#94a3b8; padding:6px 4px; border-bottom:1px solid #e5e7eb;}
+  .gm-stats th:not(:first-child), .gm-stats td:not(:first-child){text-align:center;}
+  .gm-stats td{padding:6px 4px; border-bottom:1px solid #f1f5f9;}
+  .gm-stats-updated{font-size:10.5px; color:#94a3b8; margin-top:6px;}
+  .gm-section-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#64748b; margin:18px 0 6px 0;}
+  .gm-cat-label{font-size:10.5px; font-weight:600; color:#94a3b8; margin:12px 0 4px 0;}
+  .gm-player-wrap{overflow-x:auto;}
+  .gm-scoring{list-style:none; margin:0; padding:0; font-size:12px;}
+  .gm-scoring li{padding:6px 0; border-bottom:1px solid #f1f5f9;}
+  .gm-scoring li:last-child{border-bottom:none;}
+  .gm-scoring .sc-meta{color:#94a3b8; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em;}
+  .gm-scoring .sc-score{float:right; font-weight:700; color:#1e293b;}
+
+  /* Game Central links — every game gets a real, linkable page now (see
+     site_game_central.html); placement varies by how much room each view's
+     card/row actually has. .gc-link is the spacious text-link version
+     (Matchup Cards, Season Story), .gc-icon-link is the compact arrow-only
+     version for tighter rows (Classic Athletics, Compact List) where a full
+     label wouldn't fit — Calendar's day cells are tight enough that even
+     the icon version doesn't fit, so those stay reachable via the existing
+     click-to-open modal's own Game Central link instead. */
+  .gc-link{display:inline-block; margin-top:10px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--primary); text-decoration:none;}
+  .gc-link:hover{text-decoration:underline;}
+  .gc-icon-link{margin-left:8px; color:var(--primary); font-weight:700; font-size:13px; text-decoration:none; flex-shrink:0;}
+  .gc-icon-link:hover{text-decoration:underline;}
+  .story-next .gc-link{color:#fff;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-logo"><div class="mark">{{ school['mascot'][0] if school['mascot'] else school['name'][0] }}</div>{{ school['name'] }} {{ school['mascot'] }}</div>
+  <nav class="site-nav">
+    <a href="/site/{{ school['slug'] }}">Home</a>
+    <a href="/site/{{ school['slug'] }}/teams/mens-soccer">Teams</a>
+    <a href="/site/{{ school['slug'] }}/news">News</a>
+    <a href="/site/{{ school['slug'] }}/staff">Staff</a>
+  </nav>
+</header>
+
+{% macro opponent_name(g) %}
+  {% if g['display_website'] %}<a class="opp-link" href="{{ g['display_website'] }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ g['display_name'] }}</a>{% else %}{{ g['display_name'] }}{% endif %}
+{% endmacro %}
+
+{% macro at_vs(g) %}{{ 'at' if g['home_away']=='away' else 'vs.' }}{% endmacro %}
+
+{% macro opp_matchup(g) %}{% if g['is_neutral_host'] %}{{ opponent_name(g) }} vs. {{ g['opponent_two_name'] }}{% else %}{{ opponent_name(g) }}{% endif %}{% endmacro %}
+
+{% macro opp_logo(g, size='md') %}
+  {% if g['opponent_logo'] %}
+  <div class="opp-logo {{ size }}"><img src="{{ g['opponent_logo'] }}" alt="{{ g['display_name'] }}"></div>
+  {% else %}
+  <div class="opp-logo initials {{ size }}">{{ initials(g['display_name']) }}</div>
+  {% endif %}
+{% endmacro %}
+
+{% macro player_photo(p, css_class) %}
+  {% if p['headshot_url'] %}
+  <img src="{{ p['headshot_url'] }}" alt="{{ p['first_name'] }} {{ p['last_name'] }}" class="{{ css_class }}"
+       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+  <div class="{{ css_class }} initials" style="display:none;">{{ initials(p['first_name'] ~ ' ' ~ p['last_name']) }}</div>
+  {% else %}
+  <div class="{{ css_class }} initials">{{ initials(p['first_name'] ~ ' ' ~ p['last_name']) }}</div>
+  {% endif %}
+{% endmacro %}
+
+{% macro player_links(p, social_by_athlete) %}
+  {% set links = social_by_athlete.get(p['athlete_id'], []) %}
+  {% if links or p['nil_shop_url'] %}
+  <div class="player-links">
+    {% for link in links %}<a href="{{ link['handle_or_url'] }}" target="_blank" rel="noopener" class="player-link-badge">{{ SOCIAL_PLATFORM_LABELS.get(link['platform'], link['platform']) }}</a>{% endfor %}
+    {% if p['nil_shop_url'] %}<a href="{{ p['nil_shop_url'] }}" target="_blank" rel="noopener" class="player-link-badge nil">NIL Shop</a>{% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro game_time(g) %}
+  {% if g['time_info'] and g['time_info']['has_time'] %}<span class="game-time" data-site="{{ g['time_info']['site'] }}" data-school="{{ g['time_info']['school'] }}" data-utc="{{ g['time_info']['utc_iso'] or '' }}">{{ g['time_info']['site'] }}</span>{% endif %}
+{% endmacro %}
+
+{% macro live_or_gray_pill(g) %}
+  {% if g['status']=='live' %}
+    <span class="pill live">Live{% if g['score_for'] is not none and g['score_against'] is not none %} {{ g['score_for'] }}&ndash;{{ g['score_against'] }}{% endif %}</span>
+  {% else %}
+    <span class="pill gray">{{ g['status']|capitalize }}</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro game_result(g, results_format) %}
+  {% if g['is_neutral_host'] %}
+    {% if g['status']=='final' %}<span class="pill gray">{{ g['score_for'] }}&ndash;{{ g['score_against'] }}</span>{% else %}{{ live_or_gray_pill(g) }}{% endif %}
+  {% elif g['result_type']=='no_result' %}
+    &nbsp;
+  {% elif g['result_type']=='no_team_score' %}
+    <span class="pill gray">No Team Score</span>
+  {% elif results_format=='place_finish' and g['status']=='final' and g['finish_place'] %}
+    <span class="pill blue">{{ ordinal(g['finish_place']) }} of {{ g['total_teams'] }} Teams</span>
+  {% elif g['status']=='final' %}
+    {% set r = result_letter(g['score_for'], g['score_against']) %}
+    <span class="pill {{ 'win' if r=='W' else ('tie' if r=='T' else 'loss') }}">{{ 'W' if r=='W' else ('T' if r=='T' else 'L') }} {{ g['score_for'] }}&ndash;{{ g['score_against'] }}</span>
+  {% else %}
+    {{ live_or_gray_pill(g) }}
+  {% endif %}
+{% endmacro %}
+
+{% macro record_bar_strip(rb) %}
+  <div class="record-bar">
+    <div class="rb-stat"><div class="v">{{ rb['overall'] }}</div><div class="k">Overall</div></div>
+    <div class="rb-stat"><div class="v">{{ rb['pct'] }}</div><div class="k">Pct.</div></div>
+    <div class="rb-stat"><div class="v">{{ rb['conference'] }}</div><div class="k">Conference</div></div>
+    <div class="rb-stat"><div class="v">{{ rb['conference_pct'] }}</div><div class="k">Conf. Pct.</div></div>
+    <div class="rb-stat"><div class="v">{{ rb['home'] }}</div><div class="k">Home</div></div>
+    <div class="rb-stat"><div class="v">{{ rb['away'] }}</div><div class="k">Away</div></div>
+    <div class="rb-stat"><div class="v">{{ rb['neutral'] }}</div><div class="k">Neutral</div></div>
+    <div class="rb-stat"><div class="v">{{ rb['streak'] }}</div><div class="k">Streak</div></div>
+    <div class="rb-stat"><div class="v">{{ rb['last10'] }}</div><div class="k">Last 10</div></div>
+  </div>
+{% endmacro %}
+
+{% macro tz_toggle() %}
+  <div class="tz-toggle">Times:
+    <select class="tz-select" onchange="setTzMode(this.value)">
+      <option value="site">Game Location</option>
+      <option value="school">{{ school['name'] }}</option>
+      <option value="mine">My Location</option>
+    </select>
+  </div>
+{% endmacro %}
+
+{% for block in blocks %}
+  {% if block.type == 'hero' %}
+  <div class="hero">
+    {% if block.content.eyebrow %}<div class="eyebrow">{{ block.content.eyebrow }}</div>{% endif %}
+    <h1>{{ block.content.headline }}</h1>
+    {% if block.content.subheading %}<p>{{ block.content.subheading }}</p>{% endif %}
+    {% if block.content.primary_button %}<a class="hero-btn primary" href="{{ block.content.primary_button_href or '#' }}">{{ block.content.primary_button }}</a>{% endif %}
+    {% if block.content.secondary_button %}<a class="hero-btn secondary" href="{{ block.content.secondary_button_href or '#' }}">{{ block.content.secondary_button }}</a>{% endif %}
+  </div>
+
+  {% elif block.type == 'news_feed' %}
+  <div class="section">
+    <h2>Latest News</h2>
+    <div class="news-grid">
+      {% for a in block.articles %}
+      <div class="news-card">
+        <a class="news-link" href="/site/{{ school['slug'] }}/news/{{ a['slug'] }}">
+          {% if a['featured_image_url'] %}<img class="news-thumb" src="{{ a['featured_image_url'] }}" alt="">{% endif %}
+          <span class="news-tag">{{ ARTICLE_CATEGORY_LABELS.get(a['category'], a['category'])|capitalize }}</span>
+          <h3>{{ a['title'] }}</h3>
+          <p>{{ (a['subheadline'] or (a['body']|striptags))[:140] }}&hellip;</p>
+          {% if a['published_at'] %}<div class="news-date">{{ a['published_at'][:10] }}</div>{% endif %}
+        </a>
+      </div>
+      {% else %}
+      <p>No published stories yet.</p>
+      {% endfor %}
+    </div>
+    {% if block.articles %}<a class="news-archive-link" href="{{ block.archive_href }}">View All Stories &rarr;</a>{% endif %}
+  </div>
+
+  {% elif block.type == 'schedule' and block.full_page %}
+  {#- Dedicated Schedule page: full six-view switchable render. Still just a
+      block embedded in the site's normal chrome/section rhythm, not a
+      standalone page design — and narrowed to a centered column rather
+      than the full page width, matching how most athletics sites actually
+      lay a schedule out. #}
+  <div class="section schedule-block" style="padding-top:0;">
+   <div class="sched-narrow">
+    <div class="sched-head"><h2>{{ block.team_name }} Schedule</h2>{{ tz_toggle() }}</div>
+
+    {% if block.enabled_views|length > 1 %}
+    <div class="view-switcher" data-school="{{ school['slug'] }}" data-default="{{ block.default_view }}">
+      {% for key, label in SCHEDULE_VIEWS %}
+        {% if key in block.enabled_views %}
+        <button type="button" data-view="{{ key }}" onclick="switchScheduleView('{{ key }}', this)">{{ label }}</button>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if 'classic' in block.enabled_views %}
+    <div class="sched-view" data-view="classic">
+      {% if block.show_record_bar and block.record_bar %}{{ record_bar_strip(block.record_bar) }}{% endif %}
+      {% for section in block.sections %}
+        {% if section.is_group %}<div class="event-header">{{ section.name }}</div>{% endif %}
+        {% for g in section.games %}
+        {% set dp = date_parts(g['date']) %}
+        <div class="classic-row game-clickable" onclick="openGameCard({{ g['id'] }})">
+          <span class="date-chip"><span class="dow">{{ dp.dow }}</span><span class="daynum">{{ dp.day }}</span><span class="mon">{{ dp.mon }}</span></span>
+          <span class="opp-cell">
+            {{ opp_logo(g, 'sm') }}
+            <span>
+              <span class="opp-text">{{ at_vs(g) }} {{ opp_matchup(g) }}</span>
+              {% if g['time_info'] and g['time_info']['has_time'] %}<div class="time-sub">{{ game_time(g) }}</div>{% endif %}
+              {% if g['event_group_name'] %}<div class="time-sub">{{ g['event_group_name'] }}</div>{% endif %}
+            </span>
+          </span>
+          <span class="result">{{ game_result(g, block.results_format) }}</span>
+          <a class="gc-icon-link" href="/site/{{ school['slug'] }}/games/{{ g['id'] }}" onclick="event.stopPropagation()" title="Game Central">&rarr;</a>
+        </div>
+        {% endfor %}
+      {% else %}
+      <p>No games scheduled.</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if 'matchup_cards' in block.enabled_views %}
+    <div class="sched-view" data-view="matchup_cards">
+      {% if block.show_record_bar and block.record_bar %}{{ record_bar_strip(block.record_bar) }}{% endif %}
+      {% for section in block.sections %}
+        {% if section.is_group %}<div class="event-header">{{ section.name }}</div>{% endif %}
+        <div class="matchup-grid" style="margin-bottom:14px;">
+          {% for g in section.games %}
+          <div class="matchup-card game-clickable" onclick="openGameCard({{ g['id'] }})">
+            <div class="vs-row">{{ opp_logo(g, 'lg') }}</div>
+            <div class="opp-name">{{ at_vs(g) }} {{ opp_matchup(g) }}</div>
+            <div class="meta">{{ g['date'] }}{% if g['time_info'] and g['time_info']['has_time'] %} &middot; {{ game_time(g) }}{% endif %}</div>
+            {% if g['event_group_name'] %}<div class="meta">{{ g['event_group_name'] }}</div>{% endif %}
+            <div style="margin-top:10px;">{{ game_result(g, block.results_format) }}</div>
+            <a class="gc-link" href="/site/{{ school['slug'] }}/games/{{ g['id'] }}" onclick="event.stopPropagation()">Game Central &rarr;</a>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+      <p>No games scheduled.</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if 'compact_list' in block.enabled_views %}
+    <div class="sched-view" data-view="compact_list">
+      {% if block.show_record_bar and block.record_bar %}{{ record_bar_strip(block.record_bar) }}{% endif %}
+      {% for m in block.by_month %}
+      <div class="compact-month">
+        <h3>{{ m.label }}</h3>
+        {% for g in m.games %}
+        <div class="compact-row game-clickable" onclick="openGameCard({{ g['id'] }})">
+          <span class="date">{{ g['date'][5:] }}</span>
+          <span class="opp">{{ at_vs(g) }} {{ opp_matchup(g) }}{% if g['event_group_name'] %} <span class="pill blue" style="font-size:9px;">{{ g['event_group_name'] }}</span>{% endif %}</span>
+          <span class="res">{{ game_result(g, block.results_format) }}</span>
+          <a class="gc-icon-link" href="/site/{{ school['slug'] }}/games/{{ g['id'] }}" onclick="event.stopPropagation()" title="Game Central">&rarr;</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p>No games scheduled.</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if 'timeline' in block.enabled_views %}
+    <div class="sched-view" data-view="timeline">
+      {% if block.show_record_bar and block.record_bar %}{{ record_bar_strip(block.record_bar) }}{% endif %}
+      <div class="timeline">
+        {% for g in block.games %}
+        <div class="timeline-item">
+          <div class="marker">{{ opp_logo(g, 'md') }}</div>
+          <div class="body game-clickable" onclick="openGameCard({{ g['id'] }})">
+            <div class="date">{{ g['date'] }}{% if g['time_info'] and g['time_info']['has_time'] %} &middot; {{ game_time(g) }}{% endif %}{% if g['event_group_name'] %} &middot; {{ g['event_group_name'] }}{% endif %}</div>
+            <div class="row">
+              <span class="opp-cell">{{ at_vs(g) }} {{ opp_matchup(g) }}</span>
+              {{ game_result(g, block.results_format) }}
+            </div>
+            <a class="gc-link" href="/site/{{ school['slug'] }}/games/{{ g['id'] }}" onclick="event.stopPropagation()">Game Central &rarr;</a>
+          </div>
+        </div>
+        {% else %}
+        <p>No games scheduled.</p>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if 'calendar' in block.enabled_views %}
+    <div class="sched-view" data-view="calendar">
+      {% if block.show_record_bar and block.record_bar %}{{ record_bar_strip(block.record_bar) }}{% endif %}
+      {% for m in block.months %}
+      <div class="cal-month">
+        <h3>{{ m.label }}</h3>
+        <div class="cal-grid">
+          {% for dow in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] %}<div class="cal-dow">{{ dow }}</div>{% endfor %}
+          {% for week in m.weeks %}
+            {% for cell in week %}
+              {% if cell %}
+              <div class="cal-cell"><div class="daynum">{{ cell.day }}</div>
+                {% for g in cell.games %}
+                <div class="game {{ 'final' if g['status']=='final' }}" onclick="openGameCard({{ g['id'] }})" title="Tap for game details">
+                  <div style="display:flex; align-items:center; gap:3px;">
+                    {{ opp_logo(g, 'xs') }}
+                    <span>{{ at_vs(g) }} {% if g['is_neutral_host'] %}{{ g['display_name'] }} vs {{ g['opponent_two_name'] }}{% else %}{{ g['display_name'] }}{% endif %}</span>
+                  </div>
+                  {% if g['status']=='final' and not g['is_neutral_host'] and g['result_type']=='standard' and block.results_format=='score' %}<div>({{ result_letter(g['score_for'], g['score_against']) }} {{ g['score_for'] }}-{{ g['score_against'] }})</div>{% endif %}
+                  {% if g['event_group_name'] %}<div class="evt">{{ g['event_group_name'] }}</div>{% endif %}
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="cal-cell empty"></div>
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <p>No games scheduled.</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if 'season_story' in block.enabled_views %}
+    {% set story = block.season_story %}
+    <div class="sched-view" data-view="season_story">
+      {% if block.show_record_bar and block.record_bar %}{{ record_bar_strip(block.record_bar) }}{% endif %}
+      {% if story.next_game %}
+      {% set g = story.next_game %}
+      <div class="story-next" onclick="openGameCard({{ g['id'] }})">
+        {{ opp_logo(g, 'lg') }}
+        <div>
+          <div class="label">Next Game</div>
+          <h3>{{ at_vs(g) }} {{ opp_matchup(g) }}</h3>
+          <div class="meta">{{ g['date'] }}{% if g['time_info'] and g['time_info']['has_time'] %} &middot; {{ game_time(g) }}{% endif %}{% if g['event_group_name'] %} &middot; {{ g['event_group_name'] }}{% endif %}</div>
+          <a class="gc-link" href="/site/{{ school['slug'] }}/games/{{ g['id'] }}" onclick="event.stopPropagation()">Game Central &rarr;</a>
+        </div>
+      </div>
+      {% endif %}
+      {% if story.upcoming %}
+      <div class="story-upcoming-strip">
+        {% for g in story.upcoming %}
+        <div class="u-card game-clickable" onclick="openGameCard({{ g['id'] }})">
+          {{ opp_logo(g, 'md') }}
+          <div style="margin-top:6px; font-weight:700;">{{ at_vs(g) }} {{ opponent_name(g) }}</div>
+          <div style="color:#94a3b8;">{{ g['date'] }} <a class="gc-icon-link" href="/site/{{ school['slug'] }}/games/{{ g['id'] }}" onclick="event.stopPropagation()" title="Game Central">&rarr;</a></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% for m in story.months %}
+      <div class="compact-month">
+        <h3>{{ m.label }}</h3>
+        {% for g in m.games %}
+        <div class="compact-row game-clickable" onclick="openGameCard({{ g['id'] }})">
+          <span class="date">{{ g['date'][5:] }}</span>
+          <span class="opp">{{ opp_logo(g, 'sm') }}<span>{{ at_vs(g) }} {{ opp_matchup(g) }}</span></span>
+          <span class="res">{{ game_result(g, block.results_format) }}</span>
+          <a class="gc-icon-link" href="/site/{{ school['slug'] }}/games/{{ g['id'] }}" onclick="event.stopPropagation()" title="Game Central">&rarr;</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      {% if not story.next_game %}<p>No games scheduled.</p>{% endif %}
+      {% endfor %}
+      {% if story.postseason %}
+      <div class="story-postseason">
+        <h3>Postseason</h3>
+        {% for g in story.postseason %}
+        <div class="compact-row game-clickable" onclick="openGameCard({{ g['id'] }})" style="border-bottom-color:#fde68a;">
+          <span class="date">{{ g['date'][5:] }}</span>
+          <span class="opp">{{ opp_logo(g, 'sm') }}<span>{{ at_vs(g) }} {{ opponent_name(g) }}{% if g['event_group_name'] %} &middot; {{ g['event_group_name'] }}{% endif %}</span></span>
+          <span class="res">{{ game_result(g, block.results_format) }}</span>
+          <a class="gc-icon-link" href="/site/{{ school['slug'] }}/games/{{ g['id'] }}" onclick="event.stopPropagation()" title="Game Central">&rarr;</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+   </div>
+  </div>
+  <script>(function(games){ window.ALL_GAMES = window.ALL_GAMES || {}; games.forEach(function(g){ window.ALL_GAMES[g.id] = g; }); })({{ block.games_json | safe }});</script>
+
+  {% elif block.type == 'schedule' %}
+  {#- Compact "Upcoming Games" teaser — used on team hub pages and the
+      home page. Always a simple ascending-date list regardless of the
+      team's configured views; this is deliberately the plainest render so
+      it reads as a widget inside the page, not a competing page design.
+      Same narrow column and click-to-open-card treatment as the full
+      Schedule page, just a shorter list. #}
+  <div class="section schedule-block" style="padding-top:0;">
+   <div class="sched-narrow">
+    <div class="sched-head"><h2>{{ 'Upcoming Games' if block.team_name else 'This Week' }}</h2>{{ tz_toggle() }}</div>
+    {% for section in block.sections %}
+      {% if section.is_group %}<div class="event-header">{{ section.name }}</div>{% endif %}
+      {% for g in section.games %}
+      <div class="schedule-row game-clickable" onclick="openGameCard({{ g['id'] }})">
+        <span class="date">{{ g['date'] }}{% if g['time_info'] and g['time_info']['has_time'] %}<br>{{ game_time(g) }}{% endif %}</span>
+        <span>
+          {% if g['team_name'] %}{{ g['team_name'] }}{% else %}{{ g['home_away']|capitalize }}{% endif %}
+          {{ at_vs(g) }} {{ opp_matchup(g) }}
+        </span>
+        <span>{{ g['home_away']|capitalize }}</span>
+        <span class="result">{{ game_result(g, block.results_format) }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+    <p>No games scheduled.</p>
+    {% endfor %}
+    {% if block.link_href %}<div class="sched-cta"><a href="{{ block.link_href }}">{{ block.link_label }} &rarr;</a></div>{% endif %}
+   </div>
+  </div>
+  <script>(function(games){ window.ALL_GAMES = window.ALL_GAMES || {}; games.forEach(function(g){ window.ALL_GAMES[g.id] = g; }); })({{ block.games_json | safe }});</script>
+
+  {% elif block.type == 'roster_grid' %}
+  <div class="section">
+    <h2>{{ block.roster_title or 'Roster' }}</h2>
+
+    {% if block.not_yet_published %}
+    <p>This roster isn't published yet. Check back soon.</p>
+
+    {% else %}
+    {% if block.settings and block.settings['team_photo_url'] %}
+    <img src="{{ block.settings['team_photo_url'] }}" alt="{{ block.team['name'] }} team photo" style="width:100%; max-width:720px; border-radius:10px; margin-bottom:20px; display:block;" onerror="this.style.display='none';">
+    {% endif %}
+
+    {% if block.roster_template == 'photo' %}
+    <div class="roster-photo-grid">
+      {% for p in block.roster %}
+      <div class="player-photo-card">
+        <div class="photo-wrap">
+          {{ player_photo(p, 'photo-img') }}
+          <div class="num-badge">{{ p['jersey_number'] }}</div>
+        </div>
+        <div class="info">
+          <b>{{ p['first_name'] }} {{ p['last_name'] }}</b>
+          <span>{{ p['position'] }} &middot; {{ p['class_year'] }}</span>
+          <span>{{ p['hometown'] }}</span>
+          {{ player_links(p, block.social_by_athlete) }}
+        </div>
+      </div>
+      {% else %}
+      <p>No roster entries yet.</p>
+      {% endfor %}
+    </div>
+
+    {% elif block.roster_template == 'table' %}
+    <table class="roster-table">
+      <thead><tr>
+        {% for f in block.fields_config %}{% if f.enabled %}<th>{{ roster_field_label(f) }}</th>{% endif %}{% endfor %}
+      </tr></thead>
+      <tbody>
+        {% for p in block.roster %}
+        <tr>
+          {% for f in block.fields_config %}{% if f.enabled %}
+          <td>
+            {% if f.key == 'height' %}{{ height_display(p['height_ft'], p['height_in']) }}
+            {% elif f.key == 'name' %}{{ p['first_name'] }} {{ p['last_name'] }}
+            {% else %}{{ p[f.key] or '' }}{% endif %}
+          </td>
+          {% endif %}{% endfor %}
+        </tr>
+        {% else %}
+        <tr><td colspan="8">No roster entries yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% else %}
+    <div class="roster-grid">
+      {% for p in block.roster %}
+      <div class="player-card">
+        <div class="photo"><div class="num">{{ p['jersey_number'] }}</div></div>
+        <div class="info">
+          <b>{{ p['first_name'] }} {{ p['last_name'] }}</b>
+          <span>{{ p['position'] }} &middot; {{ p['class_year'] }} &middot; {{ p['hometown'] }}</span>
+          {{ player_links(p, block.social_by_athlete) }}
+        </div>
+      </div>
+      {% else %}
+      <p>No roster entries yet.</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if block.coaches %}
+    <h2 style="margin-top:32px;">Coaching Staff</h2>
+    <div class="roster-grid">
+      {% for c in block.coaches %}
+      <div class="player-card">
+        <div class="photo">{% if c.photo_url %}<img src="{{ c.photo_url }}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none';">{% endif %}</div>
+        <div class="info">
+          <b>{{ c.name }}</b>
+          <span>{{ c.title }}{% if c.is_head_coach %} &middot; Head Coach{% endif %}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+
+  {% elif block.type == 'sponsor_strip' %}
+  <div class="sponsor-strip">
+    {% for s in block.sponsors %}
+    <div class="logo">{{ s['name'] }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endfor %}
+
+<div class="game-modal-overlay" id="game-modal-overlay" onclick="if (event.target === this) closeGameCard();">
+  <div class="game-modal">
+    <button type="button" class="game-modal-close" onclick="closeGameCard()" aria-label="Close">&times;</button>
+    <div id="game-modal-body"></div>
+  </div>
+</div>
+
+<footer class="site-footer">&copy; 2026 {{ school['name'] }} Athletics</footer>
+
+<script>
+// Game Location / Client School / My Location toggle — data-model.md §5d.
+// "Game Location" and "Client School" are pre-rendered server-side (data-site /
+// data-school). "My Location" is computed client-side from the UTC instant,
+// since the visitor's time zone is only known in the browser.
+function setTzMode(mode){
+  document.querySelectorAll('.game-time').forEach(function(el){
+    if (mode === 'site'){
+      el.textContent = el.dataset.site || '—';
+    } else if (mode === 'school'){
+      el.textContent = el.dataset.school || '—';
+    } else {
+      var utc = el.dataset.utc;
+      if (!utc){ el.textContent = el.dataset.site || '—'; return; }
+      try {
+        var d = new Date(utc);
+        el.textContent = d.toLocaleTimeString(undefined, {hour:'numeric', minute:'2-digit', timeZoneName:'short'});
+      } catch (e) {
+        el.textContent = el.dataset.site || '—';
+      }
+    }
+  });
+}
+
+// Schedule view switcher — data-model.md §12. The visitor's chosen view is
+// remembered per-site (localStorage keyed by school slug, not per-team), so
+// switching to e.g. Timeline on one team's schedule carries the preference
+// to the next team's schedule page too. This never overrides the client's
+// configured Default View for a first-time visitor.
+function switchScheduleView(view, btn) {
+  var container = btn.closest('.schedule-block');
+  container.querySelectorAll('.sched-view').forEach(function (v) {
+    v.classList.toggle('active', v.dataset.view === view);
+  });
+  container.querySelectorAll('.view-switcher button').forEach(function (b) {
+    b.classList.toggle('active', b.dataset.view === view);
+  });
+  var switcher = container.querySelector('.view-switcher');
+  if (switcher && switcher.dataset.school) {
+    try { localStorage.setItem('scheduleView:' + switcher.dataset.school, view); } catch (e) {}
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.schedule-block').forEach(function (container) {
+    var views = container.querySelectorAll('.sched-view');
+    if (!views.length) return;
+    var switcher = container.querySelector('.view-switcher');
+    var initial = switcher ? switcher.dataset.default : views[0].dataset.view;
+    if (switcher) {
+      var saved = null;
+      try { saved = localStorage.getItem('scheduleView:' + switcher.dataset.school); } catch (e) {}
+      if (saved && container.querySelector('.sched-view[data-view="' + saved + '"]')) {
+        initial = saved;
+      }
+    }
+    views.forEach(function (v) { v.classList.toggle('active', v.dataset.view === initial); });
+    if (switcher) {
+      switcher.querySelectorAll('button').forEach(function (b) { b.classList.toggle('active', b.dataset.view === initial); });
+    }
+  });
+});
+
+// Game detail card — every game, in every schedule view (Classic, Matchup
+// Cards, Compact List, Timeline, Calendar, Season Story, and the compact
+// "Upcoming Games" teaser), opens the same card on click. window.ALL_GAMES
+// is populated by a small inline <script> right after each schedule block
+// (see the games_json embed), keyed by game id, so this never needs a
+// per-game page or a network round-trip.
+var SCHOOL_MASCOT = {{ (school['mascot'] or school['name'])|tojson }};
+var SCHOOL_SLUG = {{ school['slug']|tojson }};
+
+function jsInitials(name) {
+  if (!name) return '?';
+  var words = name.replace(/'/g, '').split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function openGameCard(id) {
+  var g = (window.ALL_GAMES || {})[id];
+  if (!g) return;
+
+  var oppLabel = (g.is_neutral_host ? '' : (g.home_away === 'away' ? 'at ' : 'vs. ')) +
+    (g.display_name || '') + (g.is_neutral_host ? ' vs. ' + (g.opponent_two_name || '') : '');
+
+  var logoHtml = g.opponent_logo
+    ? '<div class="opp-logo lg"><img src="' + g.opponent_logo + '" alt=""></div>'
+    : '<div class="opp-logo initials lg">' + jsInitials(g.display_name) + '</div>';
+
+  var meta = [];
+  meta.push(g.date + (g.time_info && g.time_info.has_time ? ' &middot; ' + g.time_info.site : ''));
+  var loc = [g.city, g.state].filter(Boolean).join(', ');
+  if (g.facility) loc = (loc ? loc + ' &middot; ' : '') + g.facility;
+  if (loc) meta.push(loc);
+  if (g.event_group_name) meta.push(g.event_group_name);
+  if (!g.is_neutral_host) meta.push(g.home_away.charAt(0).toUpperCase() + g.home_away.slice(1));
+
+  var resultHtml = '<span class="pill gray">' + g.status.charAt(0).toUpperCase() + g.status.slice(1) + '</span>';
+  if (g.status === 'live') {
+    resultHtml = '<span class="pill live">Live' +
+      (g.score_for !== null && g.score_for !== undefined && g.score_against !== null && g.score_against !== undefined
+        ? ' ' + g.score_for + '–' + g.score_against : '') + '</span>';
+  } else if (g.status === 'final') {
+    if (g.result_type === 'no_result') {
+      resultHtml = '<span class="pill gray">No Result</span>';
+    } else if (g.result_type === 'no_team_score') {
+      resultHtml = '<span class="pill gray">No Team Score</span>';
+    } else if (g.finish_place) {
+      resultHtml = '<span class="pill blue">' + g.finish_place + (g.total_teams ? ' of ' + g.total_teams + ' Teams' : '') + '</span>';
+    } else if (g.score_for !== null && g.score_for !== undefined && g.score_against !== null && g.score_against !== undefined) {
+      var r = g.score_for > g.score_against ? 'W' : (g.score_for < g.score_against ? 'L' : 'T');
+      var pillClass = r === 'W' ? 'win' : (r === 'T' ? 'tie' : 'loss');
+      resultHtml = '<span class="pill ' + pillClass + '">' + r + ' ' + g.score_for + '–' + g.score_against + '</span>';
+    }
+  }
+
+  var statsHtml = '';
+  if (g.team_stats && g.team_stats.length) {
+    var statRows = g.team_stats.map(function (row) {
+      return '<tr><td>' + row.label + '</td><td>' + (row['for'] || '&mdash;') + '</td><td>' + (row['against'] || '&mdash;') + '</td></tr>';
+    }).join('');
+    statsHtml = '<table class="gm-stats"><thead><tr><th></th><th>' + SCHOOL_MASCOT + '</th><th>Opponent</th></tr></thead><tbody>' +
+      statRows + '</tbody></table>' +
+      (g.stats_feed_updated_at ? '<div class="gm-stats-updated">Stats updated ' + g.stats_feed_updated_at + '</div>' : '');
+  }
+
+  // Scoring Summary — the handful of plays that actually changed the
+  // score (see _load_scoring_plays in app.py), not a full play-by-play
+  // ticker; this app doesn't build a dedicated in-game fan page anymore.
+  var scoringHtml = '';
+  if (g.scoring_plays && g.scoring_plays.length) {
+    var scRows = g.scoring_plays.map(function (p) {
+      var metaParts = [p.period, p.clock].filter(Boolean);
+      if (p.down_distance) metaParts.push(p.down_distance);
+      var scoreAfter = (p.score_for !== null && p.score_for !== undefined)
+        ? '<span class="sc-score">' + p.score_for + '&ndash;' + p.score_against + '</span>' : '';
+      return '<li><div class="sc-meta">' + metaParts.join(' &middot; ') + '</div>' + p.description + scoreAfter + '</li>';
+    }).join('');
+    scoringHtml = '<div class="gm-section-label">Scoring Summary</div><ul class="gm-scoring">' + scRows + '</ul>';
+  }
+
+  // Player stats — same category tables the stats-import preview shows an
+  // admin before Confirm & Publish (see _build_player_stat_tables).
+  var playerHtml = '';
+  if (g.player_stats) {
+    [['for', SCHOOL_MASCOT], ['against', 'Opponent']].forEach(function (pair) {
+      var side = pair[0], sideLabel = pair[1];
+      var tables = g.player_stats[side] || [];
+      if (!tables.length) return;
+      playerHtml += '<div class="gm-section-label">' + sideLabel + '</div>';
+      tables.forEach(function (t) {
+        var head = '<tr><th>Player</th>' + t.columns.map(function (c) { return '<th>' + c.label + '</th>'; }).join('') + '</tr>';
+        var body = t.players.map(function (p) {
+          var name = (p.jersey_number ? '#' + p.jersey_number + ' ' : '') + p.player_name;
+          var cells = t.columns.map(function (c) { return '<td>' + (p.stats[c.key] || '&mdash;') + '</td>'; }).join('');
+          return '<tr><td>' + name + '</td>' + cells + '</tr>';
+        }).join('');
+        playerHtml += '<div class="gm-cat-label">' + t.label + '</div><div class="gm-player-wrap"><table class="gm-stats"><thead>' +
+          head + '</thead><tbody>' + body + '</tbody></table></div>';
+      });
+    });
+  }
+
+  var links = [];
+  // Every game now has its own permanent page — links/articles/box score/
+  // location, before, during, and after (see site_game_central.html) — so
+  // this is always offered first, not conditional on anything being on
+  // file for the game yet.
+  links.push('<a href="/site/' + SCHOOL_SLUG + '/games/' + g.id + '">Game Central</a>');
+  if (g.recap) links.push('<a class="secondary" href="/site/' + SCHOOL_SLUG + '/news/' + g.recap.slug + '">Read Recap</a>');
+  if (g.tickets_url) links.push('<a class="secondary" href="' + g.tickets_url + '" target="_blank" rel="noopener">Tickets</a>');
+  if (g.livestream_url) links.push('<a class="secondary" href="' + g.livestream_url + '" target="_blank" rel="noopener">Watch</a>');
+  if (g.box_score_url) links.push('<a class="secondary" href="' + g.box_score_url + '" target="_blank" rel="noopener">Box Score</a>');
+  if (g.display_website) links.push('<a class="secondary" href="' + g.display_website + '" target="_blank" rel="noopener">Opponent Site</a>');
+
+  document.getElementById('game-modal-body').innerHTML =
+    '<div class="gm-head">' + logoHtml + '<h3>' + oppLabel + '</h3></div>' +
+    '<div class="gm-meta">' + meta.join('<br>') + '</div>' +
+    '<div>' + resultHtml + '</div>' +
+    statsHtml +
+    scoringHtml +
+    playerHtml +
+    (links.length ? '<div class="gm-links">' + links.join('') + '</div>' : '');
+
+  document.getElementById('game-modal-overlay').classList.add('open');
+}
+
+function closeGameCard() {
+  document.getElementById('game-modal-overlay').classList.remove('open');
+}
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeGameCard();
+});
+</script>
+</body>
+</html>

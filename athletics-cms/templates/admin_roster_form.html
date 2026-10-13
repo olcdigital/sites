@@ -1,0 +1,227 @@
+{% extends "admin_base.html" %}
+{% set active = "rosters" %}
+{% block title %}{{ 'Edit Player' if roster_entry else 'Add Player' }}{% endblock %}
+{% block heading %}{{ 'Edit Player' if roster_entry else 'Add Player' }}{% endblock %}
+{% block subheading %}Writes to the athletes and roster_entries tables{% endblock %}
+{% block content %}
+{% set locked_team = (roster_entry['team_id'] if roster_entry else team_id) %}
+{% set locked_team_obj = teams | selectattr('id', 'equalto', locked_team) | first %}
+{% set locked_season = (roster_entry['season'] if roster_entry else default_season) %}
+<div class="card" style="max-width:720px;">
+  <form method="POST" action="{{ '/admin/rosters/' ~ roster_entry['id'] ~ '/edit' if roster_entry else '/admin/rosters/new' }}" id="roster-form">
+    <input type="hidden" name="mode" id="f-mode" value="new">
+    {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+
+    <div class="form-section" style="background:#f8fafc; border-radius:8px; padding:12px 14px; border-bottom:none; margin-bottom:14px;">
+      <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); margin-bottom:4px;">Roster</div>
+      <div style="font-size:14px; font-weight:600;">{{ locked_team_obj['name'] if locked_team_obj else 'No team selected' }} &mdash; {{ locked_season or 'no season' }}</div>
+      <input type="hidden" name="team_id" value="{{ locked_team }}">
+      <input type="hidden" name="season" value="{{ locked_season or '' }}">
+      <div class="footnote" style="margin:4px 0 0 0;">Confirms which roster you're adding to / editing on. To move a player to a different team or season, use Season Rollover or remove them here and add them from that roster instead.</div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-head">
+        <h3>Athlete</h3>
+        <div class="footnote" style="margin:2px 0 0 0;">
+          {% if roster_entry %}The person record behind this roster spot. Editing here updates their record everywhere they appear &mdash; other teams and seasons included. Locked by default so it can't be changed by accident from a roster screen.
+          {% else %}A brand-new person, or someone already in this school's athlete records (a multi-sport athlete or a returning player). Once created, a player stays in the system forever &mdash; there's no status to set here.{% endif %}
+        </div>
+      </div>
+
+      {% if not roster_entry %}
+      <div id="f-mode-toggle" style="display:flex; gap:6px; margin-bottom:16px;">
+        <button type="button" class="tt-btn active" data-val="new" onclick="setMode('new')">New Athlete</button>
+        <button type="button" class="tt-btn" data-val="existing" onclick="setMode('existing')">Existing Athlete</button>
+      </div>
+
+      <div id="f-existing-wrap" style="display:none;">
+        <div class="field" style="max-width:none;">
+          <label>Athlete</label>
+          <input type="text" id="f-athlete-search" placeholder="Type a name to search&hellip;" autocomplete="off"
+                 style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; margin-bottom:8px;">
+          <input type="hidden" name="athlete_id" id="f-athlete-id">
+          <div id="f-athlete-list" style="max-height:260px; overflow-y:auto; border:1px solid var(--border); border-radius:6px;">
+            {% for a in athletes %}
+            <div class="athlete-option" data-id="{{ a['id'] }}" data-search="{{ (a['first_name'] ~ ' ' ~ a['last_name']) | lower }}"
+                 onclick="selectAthlete(this)"
+                 style="padding:8px 10px; font-size:13px; cursor:pointer; border-bottom:1px solid #f1f5f9;">
+              <b>{{ a['last_name'] }}, {{ a['first_name'] }}</b>{% if a['hometown'] %} &mdash; {{ a['hometown'] }}{% endif %}
+              {% if a['current_teams'] %}<div class="footnote" style="margin:2px 0 0 0;">currently: {{ a['current_teams'] }}</div>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          <div class="footnote" style="margin:4px 0 0 0;">Adds a new team/season assignment for this person without duplicating their record. Search narrows the list below as you type; click a name to select it.</div>
+        </div>
+      </div>
+      {% endif %}
+
+      <div id="f-new-wrap">
+        <div id="f-athlete-fields" {% if roster_entry %}data-locked="1"{% endif %}>
+          <div class="form-row">
+            <div class="field"><label>First Name</label><input type="text" name="first_name" id="f-first-name" value="{{ athlete['first_name'] if athlete else '' }}" {{ 'required' if not roster_entry }} {{ 'readonly' if roster_entry }}></div>
+            <div class="field"><label>Last Name</label><input type="text" name="last_name" id="f-last-name" value="{{ athlete['last_name'] if athlete else '' }}" {{ 'required' if not roster_entry }} {{ 'readonly' if roster_entry }}></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>Hometown</label><input type="text" name="hometown" value="{{ athlete['hometown'] if athlete else '' }}" placeholder="e.g. Denver, CO" {{ 'readonly' if roster_entry }}></div>
+            <div class="field"><label>High School</label><input type="text" name="high_school" value="{{ athlete['high_school'] if athlete else '' }}" {{ 'readonly' if roster_entry }}></div>
+            <div class="field"><label>Previous School(s)</label><input type="text" name="previous_school" value="{{ athlete['previous_school'] if athlete else '' }}" placeholder="separate multiple with a semicolon" {{ 'readonly' if roster_entry }}></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>Headshot URL</label><input type="text" name="headshot_url" value="{{ athlete['headshot_url'] if athlete else '' }}" {{ 'readonly' if roster_entry }}></div>
+            <div class="field"><label>NIL Shop Link (optional)</label><input type="text" name="nil_shop_url" value="{{ athlete['nil_shop_url'] if athlete else '' }}" placeholder="link to their personal NIL shop, if any" {{ 'readonly' if roster_entry }}></div>
+          </div>
+          <div class="field" style="max-width:none;">
+            <label>Master Bio</label>
+            <textarea name="bio_text" rows="3" {{ 'readonly' if roster_entry }} style="width:100%; font-family:inherit; padding:8px 10px; border:1px solid var(--border); border-radius:6px;">{{ athlete['bio_text'] if athlete else '' }}</textarea>
+            <div class="footnote" style="margin:4px 0 0 0;">General facts about this person, shared everywhere they appear. For a write-up specific to this sport/season, use the Bio field under Roster Assignment below.</div>
+          </div>
+
+          {% if not roster_entry %}
+          <div class="form-section" style="border-top:1px solid var(--border); margin-top:12px; padding-top:14px; border-bottom:none; padding-bottom:0;">
+            <div class="form-section-head"><h3>Miscellaneous</h3><div class="footnote" style="margin:2px 0 0 0;">Optional extras that don't fit anywhere else above.</div></div>
+            <div class="form-row">
+              <div class="field"><label>Nickname</label><input type="text" name="nickname" value=""></div>
+              <div class="field"><label>Name Pronunciation</label><input type="text" name="pronunciation" value="" placeholder="e.g. cass-TEE-oh"></div>
+            </div>
+            <div class="form-row">
+              <div class="field"><label>Academic Major</label><input type="text" name="academic_major" value=""></div>
+              <div class="field"><label>Birthdate</label><input type="text" name="birthdate" value="" placeholder="e.g. 2006-04-12"></div>
+            </div>
+          </div>
+
+          <div class="form-section" style="border-top:1px solid var(--border); margin-top:12px; padding-top:14px; border-bottom:none; padding-bottom:0;">
+            <div class="form-section-head"><h3>Social Links</h3><div class="footnote" style="margin:2px 0 0 0;">Optional &mdash; add as many as you like.</div></div>
+            <div id="social-rows"></div>
+            <button type="button" class="btn secondary" onclick="addSocialRow()" style="font-size:12px; padding:6px 12px;">+ Add Social Link</button>
+          </div>
+          {% endif %}
+        </div>
+        {% if roster_entry %}
+        <button type="button" class="btn secondary" id="f-edit-athlete-btn" onclick="unlockAthleteFields()" style="margin-top:10px; font-size:12.5px; padding:7px 13px;">Edit Athlete Info</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="form-section" style="border-bottom:none; padding-bottom:0;">
+      <div class="form-section-head"><h3>Roster Assignment</h3><div class="footnote" style="margin:2px 0 0 0;">Their spot on this specific roster.</div></div>
+      <div class="form-row">
+        <div class="field"><label>Jersey #</label><input type="text" name="jersey_number" value="{{ roster_entry['jersey_number'] if roster_entry else '' }}"></div>
+        <div class="field"><label>Position</label><input type="text" name="position" value="{{ roster_entry['position'] if roster_entry else '' }}" placeholder="sport-specific, e.g. GK, OF, Mid"></div>
+        <div class="field">
+          <label>Class Year</label>
+          <select name="class_year">
+            <option value="" {{ 'selected' if not roster_entry or not roster_entry['class_year'] }}>&mdash;</option>
+            {% for cy in class_years %}
+            <option value="{{ cy }}" {{ 'selected' if roster_entry and roster_entry['class_year']==cy }}>{{ cy }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Height</label>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="number" name="height_ft" min="0" max="9" value="{{ roster_entry['height_ft'] if roster_entry and roster_entry['height_ft'] is not none else '' }}" placeholder="ft" style="width:70px;">
+            <span class="footnote" style="margin:0;">ft</span>
+            <input type="number" name="height_in" min="0" max="11" value="{{ roster_entry['height_in'] if roster_entry and roster_entry['height_in'] is not none else '' }}" placeholder="in" style="width:70px;">
+            <span class="footnote" style="margin:0;">in</span>
+          </div>
+        </div>
+        <div class="field"><label>Weight</label><input type="text" name="weight" value="{{ roster_entry['weight'] if roster_entry else '' }}" placeholder="e.g. 165"></div>
+        <div class="field"><label>Bats/Throws (optional)</label><input type="text" name="bats_throws" value="{{ roster_entry['bats_throws'] if roster_entry else '' }}" placeholder="e.g. R/R"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Custom Field 1</label><input type="text" name="custom_field_1" value="{{ roster_entry['custom_field_1'] if roster_entry else '' }}"></div>
+        <div class="field"><label>Custom Field 2</label><input type="text" name="custom_field_2" value="{{ roster_entry['custom_field_2'] if roster_entry else '' }}"></div>
+        <div class="field"><label>Custom Field 3</label><input type="text" name="custom_field_3" value="{{ roster_entry['custom_field_3'] if roster_entry else '' }}"></div>
+      </div>
+      <div class="field" style="max-width:none;">
+        <label>Bio (this sport/season)</label>
+        <textarea name="roster_bio_text" rows="3" style="width:100%; font-family:inherit; padding:8px 10px; border:1px solid var(--border); border-radius:6px;">{{ roster_entry['bio_text'] if roster_entry else '' }}</textarea>
+        <div class="footnote" style="margin:4px 0 0 0;">Optional. Separate from the Master Bio above — use this when this sport's write-up needs to say something the shared bio doesn't (or shouldn't).</div>
+      </div>
+      <div class="field" style="max-width:none;">
+        <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+          <input type="checkbox" name="hidden" {{ 'checked' if roster_entry and roster_entry['hidden'] }} style="width:auto;">
+          Hidden from this roster
+        </label>
+        <div class="footnote" style="margin:4px 0 0 0;">Keeps the assignment on record but hides them from the public roster &mdash; injured, suspended, redshirt, etc. Only affects this team; nothing here can affect another sport's roster.</div>
+      </div>
+    </div>
+
+    <button class="btn" type="submit" style="margin-top:16px;">{{ 'Save Changes' if roster_entry else '+ Add Player' }}</button>
+    <a class="btn secondary" href="/admin/rosters?team={{ locked_team or '' }}">Cancel</a>
+  </form>
+</div>
+
+{% if roster_entry %}
+<form method="POST" action="/admin/rosters/{{ roster_entry['id'] }}/remove" onsubmit="return confirm('Remove this player from the roster? Their athlete record is kept — this only removes this team/season assignment.');" style="margin-top:12px;">
+  <button class="btn danger" type="submit">Remove from Roster</button>
+</form>
+{% endif %}
+
+<script>
+  function unlockAthleteFields() {
+    var wrap = document.getElementById('f-athlete-fields');
+    wrap.querySelectorAll('input, textarea').forEach(function (el) { el.removeAttribute('readonly'); });
+    document.getElementById('f-edit-athlete-btn').style.display = 'none';
+  }
+
+  var socialRowCount = 0;
+  var SOCIAL_PLATFORMS = {{ (social_platforms or []) | tojson }};
+  function addSocialRow() {
+    var wrap = document.getElementById('social-rows');
+    if (!wrap) return;
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px;';
+    var options = SOCIAL_PLATFORMS.map(function (p) { return '<option value="' + p[0] + '">' + p[1] + '</option>'; }).join('');
+    row.innerHTML =
+      '<div class="field" style="margin-bottom:0; max-width:180px;"><label>Platform</label><select name="social_platform">' + options + '</select></div>' +
+      '<div class="field" style="margin-bottom:0; flex:1; min-width:200px;"><label>Handle or URL</label><input type="text" name="social_handle" placeholder="@handle or full link"></div>';
+    wrap.appendChild(row);
+    socialRowCount++;
+  }
+
+  {% if not roster_entry %}
+  function setMode(val) {
+    document.getElementById('f-mode').value = val;
+    document.querySelectorAll('#f-mode-toggle .tt-btn').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.val === val);
+    });
+    var isExisting = val === 'existing';
+    document.getElementById('f-existing-wrap').style.display = isExisting ? '' : 'none';
+    document.getElementById('f-new-wrap').style.display = isExisting ? 'none' : '';
+    document.getElementById('f-first-name').required = !isExisting;
+    document.getElementById('f-last-name').required = !isExisting;
+  }
+  function selectAthlete(el) {
+    document.getElementById('f-athlete-id').value = el.dataset.id;
+    document.querySelectorAll('.athlete-option').forEach(function (o) { o.style.background = ''; });
+    el.style.background = '#eff6ff';
+  }
+  document.getElementById('f-athlete-search').addEventListener('input', function () {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('.athlete-option').forEach(function (o) {
+      o.style.display = o.dataset.search.indexOf(q) === -1 ? 'none' : '';
+    });
+  });
+  document.getElementById('roster-form').addEventListener('submit', function (e) {
+    if (document.getElementById('f-mode').value === 'existing' && !document.getElementById('f-athlete-id').value) {
+      e.preventDefault();
+      alert('Select an existing athlete, or switch to "New Athlete".');
+    }
+  });
+
+  // Arrived from a player's own profile via "+ Add to a Roster" — jump
+  // straight to Existing Athlete mode with that person already selected.
+  var PRESELECT_ATHLETE_ID = {{ preselect_athlete_id | tojson }};
+  if (PRESELECT_ATHLETE_ID) {
+    setMode('existing');
+    document.getElementById('f-athlete-id').value = String(PRESELECT_ATHLETE_ID);
+    var match = document.querySelector('.athlete-option[data-id="' + PRESELECT_ATHLETE_ID + '"]');
+    if (match) match.style.background = '#eff6ff';
+  }
+  {% endif %}
+</script>
+{% endblock %}

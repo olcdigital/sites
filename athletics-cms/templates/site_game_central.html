@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ 'at' if game['home_away']=='away' else 'vs.' }} {{ game['display_name'] }} ({{ game['date'] }}) — {{ school['name'] }}</title>
+<style>
+  :root{ --primary:{{ school['primary_color'] }}; --primary-dark:#0b3319; --accent:{{ school['secondary_color'] }}; --bg:#f9faf7; }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:#1c1c1c; font-size:14px;}
+  h1,h2,h3{text-transform:uppercase; letter-spacing:.02em; font-family:Georgia, 'Times New Roman', serif;}
+  header.site-header{background:#fff; border-bottom:3px solid var(--primary); display:flex; align-items:center; justify-content:space-between; padding:14px 32px;}
+  .site-logo{display:flex; align-items:center; gap:10px; font-weight:700; color:var(--primary); text-decoration:none;}
+  .mark{width:32px; height:32px; border-radius:50%; background:var(--primary); color:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;}
+  .site-nav{display:flex; gap:22px; font-size:12.5px; font-weight:600; color:#334155; text-transform:uppercase;}
+  .site-nav a{color:#334155; text-decoration:none;}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 32px 48px;}
+  .breadcrumb{font-size:11.5px; color:#94a3b8; padding:16px 0 0;}
+
+  /* --- Matchup strip ---------------------------------------------------- */
+  .matchup-strip{background:#fff; border-top:3px solid var(--primary); border-bottom:3px solid var(--primary); border-radius:4px; margin:14px 0 22px; padding:20px 28px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;}
+  .ms-side{display:flex; align-items:center; gap:12px; flex:1 1 220px; min-width:0;}
+  .ms-side.right{flex-direction:row-reverse; text-align:right;}
+  .ms-mark{width:52px; height:52px; border-radius:50%; background:var(--primary); color:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; flex-shrink:0; font-family:Georgia,serif;}
+  .ms-logo{width:52px; height:52px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#f1f5f9; flex-shrink:0;}
+  .ms-logo img{width:100%; height:100%; object-fit:contain;}
+  .ms-logo.initials{background:var(--primary); color:#fff; font-weight:800; font-family:Georgia,serif; font-size:16px;}
+  .ms-name{font-size:16px; font-weight:700; line-height:1.25; text-transform:none; letter-spacing:normal;}
+  .ms-record{font-size:12px; color:#64748b; margin-top:2px; font-weight:600;}
+  .ms-center{text-align:center; flex:0 0 auto; padding:0 10px;}
+  .ms-date{font-size:20px; font-weight:800; font-family:Georgia,serif; color:#1c1c1c;}
+  .ms-time{font-size:12.5px; color:#64748b; margin-top:2px;}
+  .ms-score{font-size:30px; font-weight:800; font-family:Georgia,serif; margin-bottom:2px;}
+  .pill{display:inline-block; font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:10px; text-transform:uppercase; letter-spacing:.02em; margin-bottom:6px;}
+  .pill.win{background:#ecfdf5; color:#059669;} .pill.loss{background:#fef2f2; color:#b91c1c;} .pill.tie{background:#f1f5f9; color:#64748b;}
+  .pill.gray{background:#f1f5f9; color:#64748b;} .pill.amber{background:#fffbeb; color:#b45309;} .pill.blue{background:#eff6ff; color:#1d4ed8;}
+  .pill.live{background:#fef2f2; color:#b91c1c;}
+  .pill.live::before{content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:#dc2626; margin-right:5px; vertical-align:middle; animation:pulse-live 1.4s ease-in-out infinite;}
+  @keyframes pulse-live{0%,100%{opacity:1;} 50%{opacity:.35;}}
+
+  /* Action buttons under the matchup strip — Watch Live / Live Stats /
+     Tickets, whichever of livestream_url/box_score_url/tickets_url this
+     game actually has on file; the row simply doesn't render at all when
+     none do (see the same info-row links further down for the text-link
+     equivalents in the Game Information sidebar). */
+  .ms-actions{width:100%; display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:16px; padding-top:16px; border-top:1px solid #f1f5f9;}
+  .ms-btn{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700; text-decoration:none; padding:9px 18px; border-radius:6px; text-transform:uppercase; letter-spacing:.02em;}
+  .ms-btn.primary{background:var(--primary); color:#fff;}
+  .ms-btn.outline{background:#fff; color:var(--primary); border:1.5px solid var(--primary);}
+
+  /* --- Two-column layout ------------------------------------------------ */
+  .gc-grid{display:grid; grid-template-columns:2fr 1fr; gap:22px; align-items:start;}
+  @media (max-width:760px){ .gc-grid{grid-template-columns:1fr;} .matchup-strip{flex-direction:column; text-align:center;} .ms-side, .ms-side.right{flex-direction:column;} }
+  .gc-card{background:#fff; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden;}
+  .gc-card + .gc-card{margin-top:18px;}
+  .gc-card-pad{padding:16px 18px;}
+  .gc-card h2{font-size:12px; margin:0; padding:12px 18px; border-bottom:1px solid #e5e7eb; color:#1c1c1c; background:#f8fafc;}
+
+  /* Story teaser card */
+  .story-hero-img{width:100%; height:280px; object-fit:cover; display:block; background:#eef1f6;}
+  .story-hero-fallback{width:100%; height:200px; background:linear-gradient(135deg, var(--primary), var(--primary-dark)); display:flex; align-items:flex-end; padding:20px; color:#fff;}
+  .story-tag{display:inline-block; background:var(--primary); color:#fff; font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; text-transform:uppercase; margin-bottom:10px;}
+  .story-hero-fallback .story-tag{background:rgba(255,255,255,.2);}
+  .story-body-wrap{padding:18px;}
+  /* .gc-card h2 (the plain card-header bar other boxes use) would otherwise
+     leak its background/padding/border/font-size onto this h2 too, since
+     it's nested inside a .gc-card — h2.story-title's extra class+element
+     combo outweighs it so every property below actually applies. */
+  .gc-card h2.story-title{background:none; padding:0; margin:0 0 6px 0; border-bottom:none; font-size:19px; color:#1c1c1c; text-transform:none; letter-spacing:normal; line-height:1.3;}
+  .story-hero-fallback h2.story-title{color:#fff; margin:0;}
+  .story-subhead{font-size:13.5px; color:#64748b; margin:0 0 8px 0; font-weight:500; line-height:1.5;}
+  .story-excerpt{font-size:13px; color:#475569; line-height:1.6; margin:0 0 12px 0;}
+  .story-read-full{display:inline-block; font-size:12px; font-weight:700; color:var(--primary); text-decoration:none;}
+  .story-empty{padding:28px 18px; text-align:center; color:#94a3b8; font-size:13px;}
+
+  /* Leaders / Series History / Season Snapshot, three across; Last Time
+     Out / Up Next, two across (no third "Game Notes" box — nothing in the
+     schema backs free-text game notes yet, so that slot is simply absent
+     rather than shown empty, same rule as the Leaders/rank gaps above). */
+  .gc-trio{display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; margin-top:18px;}
+  .gc-duo{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px;}
+  @media (max-width:760px){ .gc-trio{grid-template-columns:1fr;} }
+  @media (max-width:520px){ .gc-duo{grid-template-columns:1fr;} }
+  /* Stacked (label above name+value) rather than one flex row, since the
+     Leaders card is now a third of the row's width (Leaders/Series
+     History/Season Snapshot, three across) instead of half — a single row
+     was too narrow for "PASSING · Tyrell Banks · 248 YDS" without
+     cramped wrapping. */
+  .leader-row{padding:9px 18px; border-bottom:1px solid #f1f5f9; font-size:12.5px;}
+  .leader-row:last-child{border-bottom:none;}
+  .leader-row .lk{display:block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#94a3b8; margin-bottom:3px;}
+  .leader-row .lbody{display:flex; justify-content:space-between; align-items:baseline; gap:8px;}
+  .leader-row .ln{font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .leader-row .lv{font-weight:700; color:var(--primary); white-space:nowrap; flex-shrink:0;}
+  .gc-empty-note{padding:18px; text-align:center; color:#94a3b8; font-size:12.5px;}
+  .series-row{display:flex; justify-content:space-between; padding:9px 18px; border-bottom:1px solid #f1f5f9; font-size:12.5px;}
+  .series-row:last-child{border-bottom:none;}
+  .series-row .sk{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#94a3b8;}
+  .snap-row{display:flex; justify-content:space-between; padding:9px 18px; border-bottom:1px solid #f1f5f9; font-size:12.5px;}
+  .snap-row:last-child{border-bottom:none;}
+  .snap-row .sk{color:#64748b;}
+  .snap-row .sv{font-weight:700;}
+
+  /* Last Time Out / Up Next mini-matchup cards */
+  .mini-matchup{display:flex; align-items:center; gap:12px; padding:14px 18px;}
+  .mini-logo{width:40px; height:40px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; background:var(--primary); flex-shrink:0; font-weight:800; font-size:13px; color:#fff; font-family:Georgia,serif;}
+  .mini-logo.has-img{background:#f1f5f9;}
+  .mini-logo img{width:100%; height:100%; object-fit:contain;}
+  .mini-body{flex:1; min-width:0;}
+  .mini-date{font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:.02em;}
+  .mini-name{font-size:13.5px; font-weight:700; margin:2px 0;}
+  .mini-loc{font-size:11.5px; color:#94a3b8;}
+  .mini-links{padding:0 18px 14px; display:flex; gap:14px;}
+  .mini-links a{font-size:11.5px; font-weight:700; color:var(--primary); text-decoration:none; text-transform:uppercase; letter-spacing:.02em;}
+  .mini-links a:hover{text-decoration:underline;}
+
+  /* Recent Stories grid, full width, below the two-column layout */
+  .gc-stories{margin-top:26px;}
+  .stories-hd{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+  .stories-hd h2{font-size:13px; margin:0; text-transform:uppercase; letter-spacing:.03em; color:#1c1c1c;}
+  .stories-hd a{font-size:12px; font-weight:700; color:var(--primary); text-decoration:none;}
+  .stories-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:18px;}
+  @media (max-width:760px){ .stories-grid{grid-template-columns:1fr;} }
+  .story-card{background:#fff; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; text-decoration:none; color:inherit; display:block;}
+  .story-card-img{width:100%; height:140px; object-fit:cover; display:block; background:#eef1f6;}
+  .story-card-body{padding:14px 16px;}
+  .story-card-date{font-size:10.5px; color:#94a3b8; text-transform:uppercase; letter-spacing:.02em;}
+  .story-card-title{font-size:14px; font-weight:700; margin:5px 0 0; line-height:1.35; color:#1c1c1c;}
+
+  /* Game Information sidebar card */
+  .info-row{display:flex; gap:10px; align-items:flex-start; padding:11px 18px; border-bottom:1px solid #f1f5f9; font-size:13px;}
+  .info-row:last-child{border-bottom:none;}
+  .info-row .ic{flex-shrink:0; width:18px; text-align:center;}
+  .info-row a{color:var(--primary); font-weight:600; text-decoration:none;}
+  .info-row a:hover{text-decoration:underline;}
+
+  /* Box score (postgame) */
+  .gc-section-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#64748b; margin:22px 0 8px 0;}
+  .gc-section-label:first-child{margin-top:0;}
+  .gc-cat-label{font-size:11px; font-weight:600; color:#94a3b8; margin:16px 0 6px 0;}
+  .gc-stats-updated{font-size:10.5px; color:#94a3b8; margin-top:6px;}
+  table.gc-stats{width:100%; border-collapse:collapse; background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; font-size:12.5px;}
+  table.gc-stats th{text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:#94a3b8; padding:9px 12px; border-bottom:1px solid #e5e7eb; background:#f8fafc;}
+  table.gc-stats th:not(:first-child), table.gc-stats td:not(:first-child){text-align:center;}
+  table.gc-stats td{padding:8px 12px; border-bottom:1px solid #f1f5f9;}
+  table.gc-stats tr:last-child td{border-bottom:none;}
+  .gc-player-wrap{overflow-x:auto; margin-bottom:10px;}
+  .gc-scoring{list-style:none; margin:0; padding:0; font-size:12.5px; background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;}
+  .gc-scoring li{padding:10px 14px; border-bottom:1px solid #f1f5f9;}
+  .gc-scoring li:last-child{border-bottom:none;}
+  .gc-scoring .sc-meta{color:#94a3b8; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em;}
+  .gc-scoring .sc-score{float:right; font-weight:700; color:#1e293b;}
+
+  .gallery-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:10px; padding:16px 18px;}
+  .gallery-grid img{width:100%; height:100px; object-fit:cover; border-radius:8px; background:#eef1f6;}
+
+  footer{padding:24px 40px; text-align:center; font-size:11.5px; color:#94a3b8;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a class="site-logo" href="/site/{{ school['slug'] }}"><div class="mark">{{ school['mascot'][0] if school['mascot'] else school['name'][0] }}</div>{{ school['name'] }} {{ school['mascot'] }}</a>
+  <nav class="site-nav">
+    <a href="/site/{{ school['slug'] }}">Home</a>
+    <a href="/site/{{ school['slug'] }}/teams/mens-soccer">Teams</a>
+    <a href="/site/{{ school['slug'] }}/news">News</a>
+    <a href="/site/{{ school['slug'] }}/staff">Staff</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div class="breadcrumb">{{ team['name'] if team else '' }} &middot; {{ game['season'] }} &middot; Game Central</div>
+
+  {# --- Matchup strip: always away-team-left, home-team-right, regardless
+      of which side is this school's own team (see the route's left_side/
+      right_side computation) — "our" side always uses the site's own
+      initial-badge mark since there's no school logo asset in this
+      prototype, only per-opponent logos. #}
+  <div class="matchup-strip">
+    <div class="ms-side">
+      {% if left_side['is_us'] %}
+      <div class="ms-mark">{{ school['mascot'][0] if school['mascot'] else school['name'][0] }}</div>
+      {% elif left_side['logo'] %}
+      <div class="ms-logo"><img src="{{ left_side['logo'] }}" alt=""></div>
+      {% else %}
+      <div class="ms-logo initials">{{ initials(left_side['name']) }}</div>
+      {% endif %}
+      <div class="ms-name">{{ left_side['name'] }}</div>
+      {% if left_side['record'] %}<div class="ms-record">{{ left_side['record'] }}</div>{% endif %}
+    </div>
+
+    <div class="ms-center">
+      {% if game['status']=='live' %}
+        <span class="pill live">Live</span>
+        {% if game['score_for'] is not none and game['score_against'] is not none %}<div class="ms-score">{{ game['score_for'] }}&ndash;{{ game['score_against'] }}</div>{% endif %}
+      {% elif game['status']=='final' %}
+        {% if game['result_type']=='no_result' %}
+          <span class="pill gray">No Result</span>
+        {% elif game['result_type']=='no_team_score' %}
+          <span class="pill gray">Final</span>
+        {% elif game['finish_place'] %}
+          <span class="pill blue">{{ ordinal(game['finish_place']) }} of {{ game['total_teams'] }}</span>
+        {% elif game['score_for'] is not none and game['score_against'] is not none %}
+          {% set r = result_letter(game['score_for'], game['score_against']) %}
+          <span class="pill {{ 'win' if r=='W' else ('tie' if r=='T' else 'loss') }}">{{ 'Final' }}</span>
+          <div class="ms-score">{{ game['score_for'] }}&ndash;{{ game['score_against'] }}</div>
+        {% else %}
+          <span class="pill gray">Final</span>
+        {% endif %}
+      {% elif game['status']=='postponed' %}
+        <span class="pill amber">Postponed</span>
+      {% elif game['status']=='cancelled' %}
+        <span class="pill gray">Cancelled</span>
+      {% endif %}
+      <div class="ms-date">{{ game['date'] }}</div>
+      {% if game['time_info'] and game['time_info']['has_time'] %}<div class="ms-time">{{ game['time_info']['site'] }}</div>{% endif %}
+    </div>
+
+    <div class="ms-side right">
+      {% if right_side['is_us'] %}
+      <div class="ms-mark">{{ school['mascot'][0] if school['mascot'] else school['name'][0] }}</div>
+      {% elif right_side['logo'] %}
+      <div class="ms-logo"><img src="{{ right_side['logo'] }}" alt=""></div>
+      {% else %}
+      <div class="ms-logo initials">{{ initials(right_side['name']) }}</div>
+      {% endif %}
+      <div class="ms-name">{{ right_side['name'] }}</div>
+      {% if right_side['record'] %}<div class="ms-record">{{ right_side['record'] }}</div>{% endif %}
+    </div>
+
+    {% if game['livestream_url'] or game['box_score_url'] or game['tickets_url'] %}
+    <div class="ms-actions">
+      {% if game['livestream_url'] %}<a class="ms-btn primary" href="{{ game['livestream_url'] }}" target="_blank" rel="noopener">&#9654; Watch Live</a>{% endif %}
+      {% if game['box_score_url'] %}<a class="ms-btn outline" href="{{ game['box_score_url'] }}" target="_blank" rel="noopener">&#128202; Live Stats</a>{% endif %}
+      {% if game['tickets_url'] %}<a class="ms-btn outline" href="{{ game['tickets_url'] }}" target="_blank" rel="noopener">&#127903; Tickets</a>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="gc-grid">
+    {# ============================= LEFT COLUMN ============================= #}
+    <div>
+
+      {# --- Story teaser: recap once it exists, else a preview, else a
+          plain empty state. Deliberately a teaser (image + headline +
+          short excerpt), not the full article body, since the full story
+          already has its own page at /news/<slug> this links out to. #}
+      {% set article = recap_article or preview_article %}
+      <div class="gc-card">
+        {% if article %}
+          {% if article['featured_image_url'] %}
+          <img class="story-hero-img" src="{{ article['featured_image_url'] }}" alt="">
+          <div class="story-body-wrap">
+            <span class="story-tag">{{ 'Recap' if recap_article else 'Preview' }}</span>
+            <h2 class="story-title">{{ article['title'] }}</h2>
+          {% else %}
+          <div class="story-hero-fallback">
+            <div>
+              <span class="story-tag">{{ 'Recap' if recap_article else 'Preview' }}</span>
+              <h2 class="story-title">{{ article['title'] }}</h2>
+            </div>
+          </div>
+          <div class="story-body-wrap">
+          {% endif %}
+            {% if article['subheadline'] %}<div class="story-subhead">{{ article['subheadline'] }}</div>{% endif %}
+            <p class="story-excerpt">{{ (article['body']|striptags)[:180] }}&hellip;</p>
+            <a class="story-read-full" href="/site/{{ school['slug'] }}/news/{{ article['slug'] }}">Read Full Story &rarr;</a>
+          </div>
+        {% else %}
+          <div class="story-empty">
+            {% if game['status'] in ('upcoming', 'live') %}No preview posted for this game yet.
+            {% else %}No recap posted for this game yet &mdash; check back soon.{% endif %}
+          </div>
+        {% endif %}
+      </div>
+
+      {# --- Leaders + Series History + Season Snapshot, three across #}
+      <div class="gc-trio">
+        <div class="gc-card">
+          <h2>{{ team['name'] if team else school['mascot'] }} Leaders</h2>
+          {% if leaders and leaders['for'] %}
+            {% for l in leaders['for'] %}
+            <div class="leader-row">
+              <span class="lk">{{ l['label'] }}</span>
+              <div class="lbody">
+                <span class="ln">{{ l['player_name'] }}{% if l['jersey_number'] %} <span style="color:#94a3b8;">#{{ l['jersey_number'] }}</span>{% endif %}</span>
+                <span class="lv">{{ l['value'] }} {{ l['leader_label'] }}</span>
+              </div>
+            </div>
+            {% endfor %}
+          {% elif leaders is not none %}
+            <div class="gc-empty-note">Leaders will appear here once the box score is in.</div>
+          {% else %}
+            <div class="gc-empty-note">Not tracked for this sport yet.</div>
+          {% endif %}
+        </div>
+
+        <div class="gc-card">
+          <h2>Series History</h2>
+          <div class="gc-empty-note">Series history tracking is coming soon.</div>
+        </div>
+
+        <div class="gc-card">
+          <h2>Season Snapshot</h2>
+          <div class="snap-row"><span class="sk">Overall Record</span><span class="sv">{{ season_snapshot['overall'] }}</span></div>
+          <div class="snap-row"><span class="sk">Conference Record</span><span class="sv">{{ season_snapshot['conference'] }}</span></div>
+          <div class="snap-row"><span class="sk">Home Record</span><span class="sv">{{ season_snapshot['home'] }}</span></div>
+          <div class="snap-row"><span class="sk">Away Record</span><span class="sv">{{ season_snapshot['away'] }}</span></div>
+          <div class="snap-row"><span class="sk">Neutral Record</span><span class="sv">{{ season_snapshot['neutral'] }}</span></div>
+          <div class="snap-row"><span class="sk">Current Streak</span><span class="sv">{{ season_snapshot['streak'] }}</span></div>
+        </div>
+      </div>
+
+      {# --- Last Time Out + Up Next, two across (no Game Notes box — see
+          README: nothing backs free-text game notes yet, so unlike Series
+          History this isn't even a placeholder, the slot is just absent) #}
+      <div class="gc-duo">
+        <div class="gc-card">
+          <h2>Last Time Out</h2>
+          {% if last_time_out %}
+            {% set r = result_letter(last_time_out['score_for'], last_time_out['score_against']) %}
+            <div class="mini-matchup">
+              {% if last_time_out['opponent_logo'] %}
+              <div class="mini-logo has-img"><img src="{{ last_time_out['opponent_logo'] }}" alt=""></div>
+              {% else %}
+              <div class="mini-logo">{{ initials(last_time_out['display_name']) }}</div>
+              {% endif %}
+              <div class="mini-body">
+                <div class="mini-date">{{ last_time_out['date'] }}</div>
+                <div class="mini-name">
+                  {{ 'at' if last_time_out['home_away']=='away' else 'vs.' }} {{ last_time_out['display_name'] }}
+                  {% if r and last_time_out['score_for'] is not none %} &mdash; <span class="{{ 'pill win' if r=='W' else ('pill tie' if r=='T' else 'pill loss') }}" style="margin:0; white-space:nowrap;">{{ r }} {{ last_time_out['score_for'] }}&ndash;{{ last_time_out['score_against'] }}</span>{% endif %}
+                </div>
+                {% if last_time_out['city'] or last_time_out['state'] %}<div class="mini-loc">{{ [last_time_out['city'], last_time_out['state']]|select|join(', ') }}</div>{% endif %}
+              </div>
+            </div>
+            <div class="mini-links">
+              {% if last_time_out['recap'] %}<a href="/site/{{ school['slug'] }}/news/{{ last_time_out['recap']['slug'] }}">Recap</a>{% endif %}
+              <a href="/site/{{ school['slug'] }}/games/{{ last_time_out['id'] }}">Box Score</a>
+            </div>
+          {% else %}
+            <div class="gc-empty-note">This is the team's first game on file.</div>
+          {% endif %}
+        </div>
+
+        <div class="gc-card">
+          <h2>Up Next</h2>
+          {% if up_next %}
+            <div class="mini-matchup">
+              {% if up_next['opponent_logo'] %}
+              <div class="mini-logo has-img"><img src="{{ up_next['opponent_logo'] }}" alt=""></div>
+              {% else %}
+              <div class="mini-logo">{{ initials(up_next['display_name']) }}</div>
+              {% endif %}
+              <div class="mini-body">
+                <div class="mini-date">{{ up_next['date'] }}{% if up_next['time_info'] and up_next['time_info']['has_time'] %} &middot; {{ up_next['time_info']['site'] }}{% endif %}</div>
+                <div class="mini-name">{{ 'at' if up_next['home_away']=='away' else 'vs.' }} {{ up_next['display_name'] }}</div>
+                {% if up_next['city'] or up_next['state'] %}<div class="mini-loc">{{ [up_next['city'], up_next['state']]|select|join(', ') }}</div>{% endif %}
+              </div>
+            </div>
+            <div class="mini-links">
+              <a href="/site/{{ school['slug'] }}/games/{{ up_next['id'] }}">Game Central</a>
+              <a href="/site/{{ school['slug'] }}/teams/{{ team['slug'] if team else '' }}/schedule">Schedule</a>
+            </div>
+          {% else %}
+            <div class="gc-empty-note">Nothing further scheduled yet.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {# --- Full box score — postgame only, same underlying data as the
+          schedule's quick-look modal, laid out as a full page section. #}
+      {% if has_box_score %}
+        {% if game['team_stats'] %}
+        <div class="gc-section-label">Team Stats</div>
+        <table class="gc-stats">
+          <thead><tr><th></th><th>{{ team['name'] if team else school['mascot'] }}</th><th>Opponent</th></tr></thead>
+          <tbody>
+            {% for row in game['team_stats'] %}
+            <tr><td>{{ row['label'] }}</td><td>{{ row['for'] or '—' }}</td><td>{{ row['against'] or '—' }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% if game['stats_feed_updated_at'] %}<div class="gc-stats-updated">Stats updated {{ game['stats_feed_updated_at'] }}</div>{% endif %}
+        {% endif %}
+
+        {% if game['scoring_plays'] %}
+        <div class="gc-section-label">Scoring Summary</div>
+        <ul class="gc-scoring">
+          {% for p in game['scoring_plays'] %}
+          <li>
+            <div class="sc-meta">{{ [p['period'], p['clock'], p['down_distance']]|select|join(' · ') }}</div>
+            {{ p['description'] }}
+            {% if p['score_for'] is not none %}<span class="sc-score">{{ p['score_for'] }}&ndash;{{ p['score_against'] }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if game['player_stats'] %}
+          {% for side, side_label in [('for', team['name'] if team else school['mascot']), ('against', 'Opponent')] %}
+            {% set tables = game['player_stats'].get(side) %}
+            {% if tables %}
+            <div class="gc-section-label">{{ side_label }}</div>
+            {% for t in tables %}
+            <div class="gc-cat-label">{{ t['label'] }}</div>
+            <div class="gc-player-wrap">
+              <table class="gc-stats">
+                <thead><tr><th>Player</th>{% for c in t['columns'] %}<th>{{ c['label'] }}</th>{% endfor %}</tr></thead>
+                <tbody>
+                  {% for p in t['players'] %}
+                  <tr>
+                    <td>{% if p['jersey_number'] %}#{{ p['jersey_number'] }} {% endif %}{{ p['player_name'] }}</td>
+                    {% for c in t['columns'] %}<td>{{ p['stats'].get(c['key']) or '—' }}</td>{% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% endfor %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endif %}
+    </div>
+
+    {# ============================= RIGHT COLUMN ============================= #}
+    <div>
+      <div class="gc-card">
+        <h2>Game Information</h2>
+        <div class="info-row"><span class="ic">&#128197;</span><span>{{ game['date'] }}</span></div>
+        {% if game['time_info'] and game['time_info']['has_time'] %}<div class="info-row"><span class="ic">&#128337;</span><span>{{ game['time_info']['site'] }}</span></div>{% endif %}
+        {% if game['city'] or game['state'] %}<div class="info-row"><span class="ic">&#128205;</span><span>{{ [game['city'], game['state']]|select|join(', ') }}</span></div>{% endif %}
+        {% if game['facility'] %}<div class="info-row"><span class="ic">&#127943;</span><span>{{ game['facility'] }}</span></div>{% endif %}
+        {% if game['tickets_url'] %}<div class="info-row"><span class="ic">&#127903;</span><a href="{{ game['tickets_url'] }}" target="_blank" rel="noopener">Tickets</a></div>{% endif %}
+        {% if game['livestream_url'] %}<div class="info-row"><span class="ic">&#128250;</span><a href="{{ game['livestream_url'] }}" target="_blank" rel="noopener">Watch Live</a></div>{% endif %}
+        {% if game['box_score_url'] %}<div class="info-row"><span class="ic">&#128202;</span><a href="{{ game['box_score_url'] }}" target="_blank" rel="noopener">Official Box Score</a></div>{% endif %}
+        {% if game['display_website'] %}<div class="info-row"><span class="ic">&#128279;</span><a href="{{ game['display_website'] }}" target="_blank" rel="noopener">Opponent Site</a></div>{% endif %}
+
+        {% if gallery_items %}
+        <div class="gallery-grid">
+          {% for m in gallery_items %}{% if m['type'] == 'image' %}<img src="{{ m['url'] }}" alt="{{ m['caption'] or '' }}">{% endif %}{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# --- Recent Stories: this team's latest headlines, minus whichever
+      preview/recap is already shown above as the page's own story teaser
+      (see _load_recent_team_stories) — same query the Sport page's News
+      rotator block uses, just scoped and limited to 3 here. #}
+  {% if recent_stories %}
+  <div class="gc-stories">
+    <div class="stories-hd">
+      <h2>Recent {{ team['name'] if team else school['mascot'] }} Stories</h2>
+      <a href="/site/{{ school['slug'] }}/news">View All Stories &rarr;</a>
+    </div>
+    <div class="stories-grid">
+      {% for s in recent_stories %}
+      <a class="story-card" href="/site/{{ school['slug'] }}/news/{{ s['slug'] }}">
+        {% if s['featured_image_url'] %}<img class="story-card-img" src="{{ s['featured_image_url'] }}" alt="">{% endif %}
+        <div class="story-card-body">
+          {% if s['published_at'] %}<div class="story-card-date">{{ s['published_at'][:10] }}</div>{% endif %}
+          <div class="story-card-title">{{ s['title'] }}</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<footer>{{ school['name'] }} Athletics</footer>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{% extends "admin_base.html" %}
+{% set active = "schedule" %}
+{% block title %}Event Groups{% endblock %}
+{% block heading %}Event Groups{% endblock %}
+{% block subheading %}Group several contests under one shared meet/tournament header — each game stays independently scored{% endblock %}
+{% block content %}
+<div class="tabs">
+  {% for t in teams %}
+  <a href="/admin/schedule/events?team={{ t['id'] }}" class="{{ 'active' if current_team and t['id']==current_team['id'] }}">{{ t['name'] }}</a>
+  {% endfor %}
+</div>
+
+{% if current_team %}
+<div class="card" style="max-width:560px;">
+  <h2 style="font-size:14px; margin-top:0;">New Event Group — {{ current_team['name'] }}</h2>
+  <form method="POST" action="/admin/schedule/events/new">
+    <input type="hidden" name="team_id" value="{{ current_team['id'] }}">
+    <div class="field"><label>Name</label><input type="text" name="name" required placeholder="e.g. Empire Conference Tournament"></div>
+    <div class="form-row">
+      <div class="field"><label>Season</label><input type="text" name="season" value="2026" required></div>
+      <div class="field"><label>Start Date</label><input type="date" name="start_date"></div>
+      <div class="field"><label>End Date</label><input type="date" name="end_date"></div>
+    </div>
+    <button class="btn" type="submit">+ Create Event Group</button>
+  </form>
+  <div class="footnote">Then pick this group from the Event Group field when adding or editing any of its games.</div>
+</div>
+
+<div class="card">
+  <h2 style="font-size:14px; margin-top:0;">{{ current_team['name'] }} event groups ({{ groups|length }})</h2>
+  <table>
+    <thead><tr><th>Name</th><th>Season</th><th>Dates</th><th>Games</th></tr></thead>
+    <tbody>
+      {% for grp in groups %}
+      <tr>
+        <td>{{ grp['name'] }}</td>
+        <td>{{ grp['season'] }}</td>
+        <td>{{ grp['start_date'] or '—' }}{% if grp['end_date'] and grp['end_date'] != grp['start_date'] %} &ndash; {{ grp['end_date'] }}{% endif %}</td>
+        <td><span class="badge gray">{{ grp['game_count'] }} game{{ '' if grp['game_count']==1 else 's' }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">No event groups yet for {{ current_team['name'] }}.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

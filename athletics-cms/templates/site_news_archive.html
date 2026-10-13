@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>News — {{ school['name'] }}</title>
+<style>
+  :root{ --primary:{{ school['primary_color'] }}; --primary-dark:#0b3319; --accent:{{ school['secondary_color'] }}; --bg:#f9faf7; }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:#1c1c1c; font-size:14px;}
+  h1,h2,h3{text-transform:uppercase; letter-spacing:.02em; font-family:Georgia, 'Times New Roman', serif;}
+  header.site-header{background:#fff; border-bottom:3px solid var(--primary); display:flex; align-items:center; justify-content:space-between; padding:14px 32px;}
+  .site-logo{display:flex; align-items:center; gap:10px; font-weight:700; color:var(--primary); text-decoration:none;}
+  .mark{width:32px; height:32px; border-radius:50%; background:var(--primary); color:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .site-nav{display:flex; gap:22px; font-size:12.5px; font-weight:600; color:#334155; text-transform:uppercase;}
+  .site-nav a{color:#334155; text-decoration:none;}
+  .site-nav a.current{color:var(--primary);}
+  .section{padding:36px 40px; max-width:1080px; margin:0 auto;}
+  .section h1{font-size:26px; color:var(--primary); margin:0 0 6px 0;}
+  .section .lede{font-size:12.5px; color:#64748b; margin:0 0 22px 0; text-transform:none; letter-spacing:normal; font-family:inherit;}
+  .filters{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px;}
+  .filters select{font-size:12.5px; padding:7px 10px; border:1px solid #e5e7eb; border-radius:6px; background:#fff;}
+  .filters a.clear{font-size:12px; color:#64748b; align-self:center;}
+  .news-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:18px;}
+  .news-card{background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px;}
+  .news-card a.news-link{color:inherit; text-decoration:none; display:block;}
+  .news-card a.news-link:hover h3{color:var(--primary);}
+  .news-thumb{width:100%; height:130px; object-fit:cover; border-radius:6px; margin-bottom:10px; background:#eef1f6;}
+  .news-tag{display:inline-block; background:var(--primary); color:#fff; font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; text-transform:uppercase; margin-bottom:8px;}
+  .news-card h3{font-size:15px; margin:0 0 6px 0; text-transform:none; font-family:inherit;}
+  .news-card p{font-size:12.5px; color:#64748b; line-height:1.6; margin:0;}
+  .news-meta{font-size:11px; color:#94a3b8; margin-top:10px;}
+  .empty{font-size:13px; color:#64748b;}
+  footer{padding:24px 40px; text-align:center; font-size:11.5px; color:#94a3b8;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a class="site-logo" href="/site/{{ school['slug'] }}"><div class="mark">{{ school['mascot'][0] if school['mascot'] else school['name'][0] }}</div>{{ school['name'] }} {{ school['mascot'] }}</a>
+  <nav class="site-nav">
+    <a href="/site/{{ school['slug'] }}">Home</a>
+    <a href="/site/{{ school['slug'] }}/teams/mens-soccer">Teams</a>
+    <a href="/site/{{ school['slug'] }}/news" class="current">News</a>
+    <a href="/site/{{ school['slug'] }}/staff">Staff</a>
+  </nav>
+</header>
+
+<div class="section">
+  <h1>News</h1>
+  <p class="lede">Every published story, most recent first — a system-generated archive (data-model.md &sect;7), not a hand-built page.</p>
+
+  <form method="GET" action="/site/{{ school['slug'] }}/news" class="filters">
+    <select name="category" onchange="this.form.submit()">
+      <option value="">All Categories</option>
+      {% for value, label in categories %}
+      <option value="{{ value }}" {{ 'selected' if category_filter==value }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% if teams %}
+    <select name="team" onchange="this.form.submit()">
+      <option value="">All Teams</option>
+      {% for t in teams %}
+      <option value="{{ t['id'] }}" {{ 'selected' if team_filter==t['id'] }}>{{ t['name'] }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+    {% if seasons %}
+    <select name="season" onchange="this.form.submit()">
+      <option value="">All Seasons</option>
+      {% for s in seasons %}
+      <option value="{{ s }}" {{ 'selected' if season_filter==s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+    {% if category_filter or team_filter or season_filter %}
+    <a class="clear" href="/site/{{ school['slug'] }}/news">Clear filters</a>
+    {% endif %}
+  </form>
+
+  <div class="news-grid">
+    {% for a in articles %}
+    <div class="news-card">
+      <a class="news-link" href="/site/{{ school['slug'] }}/news/{{ a['slug'] }}">
+        {% if a['featured_image_url'] %}<img class="news-thumb" src="{{ a['featured_image_url'] }}" alt="">{% endif %}
+        <span class="news-tag">{{ ARTICLE_CATEGORY_LABELS.get(a['category'], a['category']) }}</span>
+        <h3>{{ a['title'] }}</h3>
+        <p>{{ (a['subheadline'] or (a['body']|striptags))[:140] }}&hellip;</p>
+        <div class="news-meta">{{ a['team_name'] or school['name'] }} &middot; {{ a['published_at'][:10] if a['published_at'] else '' }}</div>
+      </a>
+    </div>
+    {% else %}
+    <p class="empty">No stories match these filters.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<footer>{{ school['name'] }} Athletics</footer>
+</body>
+</html>

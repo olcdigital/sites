@@ -1,0 +1,361 @@
+{% extends "admin_base.html" %}
+{% set active = "schedule" %}
+{% block title %}{{ 'Edit Game' if game else 'Add Game' }}{% endblock %}
+{% block heading %}{{ 'Edit Game' if game else 'Add Game' }}{% endblock %}
+{% block subheading %}Writes directly to the games table{% endblock %}
+{% block content %}
+<div class="card" style="max-width:720px;">
+  <form method="POST" action="{{ '/admin/schedule/' ~ game['id'] ~ '/edit' if game else '/admin/schedule/new' }}" id="game-form">
+
+    <div class="form-section">
+      <div class="form-section-head"><h3>Event Details</h3><div class="footnote" style="margin:2px 0 0 0;">What it is, and when.</div></div>
+      <div class="form-row">
+        <div class="field">
+          <label>Team</label>
+          <select name="team_id" id="f-team" required>
+            {% for t in teams %}
+            <option value="{{ t['id'] }}" {{ 'selected' if (game and game['team_id']==t['id']) or (not game and team_id==t['id']) }}>{{ t['name'] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Season</label>
+          <input type="text" name="season" value="{{ game['season'] if game else '2026' }}" required>
+        </div>
+        <div class="field">
+          <label>Game Type</label>
+          <select name="game_type" id="f-game-type" required>
+            <option value="" disabled {{ 'selected' if not game }}>Select a type&hellip;</option>
+            {% for value, label in game_types %}
+            <option value="{{ value }}" {{ 'selected' if game and game['game_type']==value }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <div class="footnote" style="margin:4px 0 0 0;">Scrimmage and Exhibition never count toward the team's record.</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Date</label><input type="date" name="date" value="{{ game['date'] if game else '' }}" required></div>
+        <div class="field">
+          <label>Time</label>
+          <input type="time" name="time" id="f-time" value="{{ game['time'] or '' if game else '' }}">
+          <div id="f-time-type-toggle" style="display:flex; gap:6px; margin-top:6px;">
+            <button type="button" class="tt-btn" data-val="all_day" onclick="setTimeType('all_day')">All Day</button>
+            <button type="button" class="tt-btn" data-val="tba" onclick="setTimeType('tba')">TBA</button>
+          </div>
+          <input type="hidden" name="time_type" id="f-time-type" value="{{ game['time_type'] if game and game['time_type'] else 'specific' }}">
+          <div class="footnote" id="f-time-footnote" style="margin:4px 0 0 0;">Enter a specific time, or choose All Day / TBA instead.</div>
+          <div class="footnote" id="f-time-error" style="display:none; margin:4px 0 0 0; color:#b91c1c;">Enter a time, or choose All Day / TBA, before saving.</div>
+        </div>
+        <div class="field">
+          <label>Time Zone</label>
+          <select name="time_zone" id="f-timezone">
+            {% for tz in common_timezones %}
+            <option value="{{ tz }}" {{ 'selected' if (game and game['time_zone']==tz) or (not game and school['default_timezone']==tz) }}>{{ tz.split('/')[-1].replace('_',' ') }}</option>
+            {% endfor %}
+          </select>
+          <div class="footnote" style="margin:4px 0 0 0;">Defaults to {{ school['name'] }}'s own zone.</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Status</label>
+          <select name="status">
+            <option value="upcoming" {{ 'selected' if game and game['status']=='upcoming' }}>Upcoming</option>
+            <option value="live" {{ 'selected' if game and game['status']=='live' }}>Live</option>
+            <option value="final" {{ 'selected' if game and game['status']=='final' }}>Final</option>
+            <option value="postponed" {{ 'selected' if game and game['status']=='postponed' }}>Postponed</option>
+            <option value="cancelled" {{ 'selected' if game and game['status']=='cancelled' }}>Cancelled</option>
+          </select>
+          <div class="footnote" style="margin:4px 0 0 0;">A stats-feed import (below, where available) sets this automatically too.</div>
+        </div>
+        <div class="field">
+          <label>Event Group (optional)</label>
+          <select name="event_group_id" id="f-event-group">
+            <option value="">None</option>
+          </select>
+          <div class="footnote" style="margin:4px 0 0 0;"><a href="/admin/schedule/events?team={{ (game['team_id'] if game else team_id) or '' }}">+ Manage Event Groups</a></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-head"><h3>Opponent &amp; Venue</h3><div class="footnote" style="margin:2px 0 0 0;">Who, and where it's being played.</div></div>
+      <div class="field" style="max-width:none; background:#f6f7fb; border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:14px;">
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:0; cursor:pointer;">
+          <input type="checkbox" name="is_neutral_host" id="f-neutral-host" {{ 'checked' if game and game['is_neutral_host'] }} style="width:auto;">
+          This is a <b>Neutral Host</b> game &mdash; two other teams, {{ school['name'] }} isn't a participant
+        </label>
+        <div class="footnote" style="margin:4px 0 0 0;">Doesn't count toward {{ school['name'] }}'s record either way &mdash; forces Home/Away to Neutral.</div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label id="f-opponent-label">Opponent</label>
+          <select name="opponent_id" id="f-opponent" required>
+            {% for o in opponents %}
+            <option value="{{ o['id'] }}" {{ 'selected' if game and game['opponent_id']==o['id'] }}>{{ o['name'] }}</option>
+            {% endfor %}
+          </select>
+          <div class="footnote"><a href="/admin/opponents">+ Add a new opponent</a> if it's not in this list.</div>
+        </div>
+        <div class="field" id="f-opponent-two-wrap" style="display:none;">
+          <label>Team B</label>
+          <select name="opponent_two_id" id="f-opponent-two">
+            {% for o in opponents %}
+            <option value="{{ o['id'] }}" {{ 'selected' if game and game['opponent_two_id']==o['id'] }}>{{ o['name'] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Home / Away</label>
+          <select name="home_away" id="f-home-away">
+            <option value="home" {{ 'selected' if game and game['home_away']=='home' }}>Home</option>
+            <option value="away" {{ 'selected' if game and game['home_away']=='away' }}>Away</option>
+            <option value="neutral" {{ 'selected' if game and game['home_away']=='neutral' }}>Neutral</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>City</label><input type="text" name="city" id="f-city" value="{{ (game['city'] or '') if game else school['city'] }}" placeholder="e.g. Northfield"></div>
+        <div class="field"><label>State (or Country)</label><input type="text" name="state" id="f-state" value="{{ (game['state'] or '') if game else school['state'] }}" placeholder="e.g. IL, or a country for games abroad"></div>
+        <div class="field"><label>Facility (optional)</label><input type="text" name="facility" value="{{ game['facility'] or '' if game else '' }}" placeholder="e.g. Northfield Field"></div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Display Name (optional override)</label>
+          <input type="text" name="opponent_display_name" id="f-display-name" value="{{ game['opponent_display_name'] or '' if game else '' }}" placeholder="e.g. Ridgeview Invitational">
+          <div class="footnote" style="margin:4px 0 0 0;">Leave blank to show the opponent's real name. Never changes the opponent's saved logo.</div>
+        </div>
+        <div class="field">
+          <label>Display Website (optional override)</label>
+          <input type="text" name="opponent_display_website_url" value="{{ game['opponent_display_website_url'] or '' if game else '' }}" placeholder="Leave blank to use the opponent's own site">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-head"><h3>Coverage &amp; Tickets</h3><div class="footnote" style="margin:2px 0 0 0;">How fans watch or attend.</div></div>
+      <div class="form-row">
+        <div class="field"><label>Tickets URL</label><input type="text" name="tickets_url" value="{{ game['tickets_url'] or '' if game else '' }}"></div>
+        <div class="field"><label>Livestream URL</label><input type="text" name="livestream_url" value="{{ game['livestream_url'] or '' if game else '' }}"></div>
+      </div>
+      <div class="callout" style="margin-bottom:0;">Radio/TV, video-stream provider, and Live Stats coverage fields (data-model.md &sect;5i) are designed but not wired up in this build yet &mdash; Tickets and Livestream URL above are what's live today.</div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-head"><h3>Additional Links &amp; Files</h3><div class="footnote" style="margin:2px 0 0 0;">Extra material tied to this game.</div></div>
+      <div class="field" style="max-width:none;">
+        <label>Linked photo gallery (optional)</label>
+        <select name="linked_gallery_id">
+          <option value="">None</option>
+          {% for g in galleries %}
+          <option value="{{ g['id'] }}" {{ 'selected' if game and game['linked_gallery_id']==g['id'] }}>{{ g['title'] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="callout" style="margin-bottom:0;">A general-purpose file &amp; link library for game notes, recap PDFs, sponsor assets, and more (data-model.md &sect;5j/&sect;13) is coming &mdash; for now, a photo gallery is the only linkable resource.</div>
+    </div>
+
+    <div class="form-section" style="border-bottom:none; padding-bottom:0;">
+      <div class="form-section-head"><h3>Results</h3><div class="footnote" style="margin:2px 0 0 0;">What happened, once it's final.</div></div>
+
+      {% if stat_categories %}
+        {% if not game %}
+        <div class="callout">Once this game is saved, its Edit screen will show the live-stats webhook URL for this team and let you generate the box score.</div>
+        {% else %}
+          {% if request.args.get('imported') %}
+          <div class="callout" style="background:#ecfdf5; border-color:#a7f3d0; color:#065f46;">Box score published{% if game['stats_feed_updated_at'] %} &mdash; last updated {{ game['stats_feed_updated_at'] }}{% endif %}.</div>
+          {% endif %}
+          {% if current_team['live_scoring_mode'] == 'off' %}
+          <div class="callout">
+            <b>Live stats</b> &mdash; off for {{ current_team['name'] }}. Turn it on in <a href="/admin/schedule?team={{ current_team['id'] }}">Schedule Settings</a> to get a webhook URL and enable score/box-score updates for this game.
+          </div>
+          {% else %}
+          <div class="callout">
+            <div style="margin-bottom:8px;"><b>Live stats webhook</b> &mdash; give this URL to your stats provider (e.g. StatBroadcast) or stat-computer software. A live push updates the score here immediately; a final push {{ 'publishes the box score right away' if current_team['live_scoring_mode'] == 'auto_publish' else 'is held here for you to review below before it publishes' }}.</div>
+            <code style="display:block; font-size:11.5px; background:#f8fafc; border:1px solid #e5e7eb; border-radius:6px; padding:8px 10px; overflow-x:auto; white-space:nowrap;">POST {{ webhook_url }}</code>
+            <div class="footnote" style="margin-top:6px;">Same secret token for every one of {{ current_team['name'] }}'s games &mdash; change Live Scoring's provider trust level any time in Schedule Settings.</div>
+          </div>
+
+          {% if game['pending_feed_xml'] %}
+          <div class="callout" style="background:#fffbeb; border-color:#fde68a; color:#92400e; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:220px;">A final feed arrived{% if game['pending_feed_received_at'] %} at {{ game['pending_feed_received_at'] }}{% endif %} and is waiting for review before its box score publishes.</div>
+            <a class="btn secondary" href="/admin/schedule/{{ game['id'] }}/stats/import">Review &amp; Publish&hellip;</a>
+          </div>
+          {% endif %}
+
+          {% set has_any_stat = game_stats and (game_stats|selectattr('for')|list or game_stats|selectattr('against')|list) %}
+          {% if has_any_stat %}
+          <table style="margin-bottom:14px;">
+            <thead><tr><th></th><th>{{ school['mascot'] or school['name'] }}</th><th>Opponent</th></tr></thead>
+            <tbody>
+              {% for row in game_stats %}
+              <tr><td>{{ row['label'] }}</td><td>{{ row['for'] or '—' }}</td><td>{{ row['against'] or '—' }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+          <div class="footnote" style="margin:0 0 14px 0;">No stats provider hooked up yet, or want to try this with a saved feed file? <a href="/admin/schedule/{{ game['id'] }}/stats/import">Manually paste or upload a feed&hellip;</a></div>
+          {% endif %}
+        {% endif %}
+      {% endif %}
+
+      {% if game and game['status'] == 'final' %}
+      <div class="callout" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:220px;">
+          {% if recap_article %}
+          A recap is on file for this game (<span class="badge {{ 'green' if recap_article['status']=='published' else ('amber' if recap_article['status']=='pending_review' else 'gray') }}">{{ 'Pending Review' if recap_article['status']=='pending_review' else recap_article['status']|capitalize }}</span>).
+          {% else %}
+          No recap written yet for this game — the Story System (data-model.md &sect;7) is what publishes one.
+          {% endif %}
+        </div>
+        {% if recap_article %}
+        <a class="btn secondary" href="/admin/news/{{ recap_article['id'] }}/edit">Edit Recap</a>
+        {% else %}
+        <a class="btn secondary" href="/admin/news/new?linked_game_id={{ game['id'] }}&amp;team_id={{ game['team_id'] }}&amp;season={{ game['season'] }}&amp;category=game_recap">+ Add Recap</a>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <div class="form-row">
+        <div class="field">
+          <label>Result Type</label>
+          <select name="result_type" id="f-result-type">
+            {% for value, label in result_types %}
+            <option value="{{ value }}" {{ 'selected' if game and game['result_type']==value }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label>Box score URL</label><input type="text" name="box_score_url" value="{{ game['box_score_url'] or '' if game else '' }}"></div>
+      </div>
+      <div id="f-score-fields" class="form-row">
+        <div class="field"><label>Score for {{ school['mascot'] or school['name'] }}</label><input type="number" name="score_for" value="{{ game['score_for'] if game and game['score_for'] is not none else '' }}"></div>
+        <div class="field"><label>Opponent score</label><input type="number" name="score_against" value="{{ game['score_against'] if game and game['score_against'] is not none else '' }}"></div>
+      </div>
+      <div id="f-finish-fields" class="form-row" style="display:none;">
+        <div class="field"><label>Finish Place</label><input type="number" name="finish_place" value="{{ game['finish_place'] if game and game['finish_place'] is not none else '' }}" placeholder="e.g. 3"></div>
+        <div class="field"><label>Total Teams</label><input type="number" name="total_teams" value="{{ game['total_teams'] if game and game['total_teams'] is not none else '' }}" placeholder="e.g. 12"></div>
+      </div>
+      <div class="footnote" style="margin-top:-8px;">Score/finish fields are only used when Status is Final and Result Type is Standard.</div>
+    </div>
+
+    <button class="btn" type="submit" style="margin-top:16px;">{{ 'Save Changes' if game else '+ Add Game' }}</button>
+    <a class="btn secondary" href="/admin/schedule?team={{ (game['team_id'] if game else team_id) or '' }}">Cancel</a>
+  </form>
+</div>
+
+{% if game %}
+<form method="POST" action="/admin/schedule/{{ game['id'] }}/delete" onsubmit="return confirm('Delete this game? This cannot be undone.');" style="margin-top:12px;">
+  <button class="btn danger" type="submit">Delete Game</button>
+</form>
+{% endif %}
+
+<script>
+  var OPPONENTS = {{ opponents_json | safe }};
+  var TEAMS = {{ teams_json | safe }};
+  var EVENT_GROUPS = {{ event_groups_json | safe }};
+  var SCHOOL = { city: {{ school['city']|tojson }}, state: {{ school['state']|tojson }} };
+  var CURRENT_EVENT_GROUP_ID = {{ (game['event_group_id'] if game and game['event_group_id'] else '') | tojson }};
+
+  function opponentById(id) {
+    for (var i = 0; i < OPPONENTS.length; i++) { if (String(OPPONENTS[i].id) === String(id)) return OPPONENTS[i]; }
+    return null;
+  }
+
+  function refreshEventGroupOptions() {
+    var teamId = document.getElementById('f-team').value;
+    var sel = document.getElementById('f-event-group');
+    var groups = EVENT_GROUPS[teamId] || [];
+    sel.innerHTML = '<option value="">None</option>';
+    groups.forEach(function (g) {
+      var opt = document.createElement('option');
+      opt.value = g.id; opt.textContent = g.name + ' (' + g.season + ')';
+      if (String(g.id) === String(CURRENT_EVENT_GROUP_ID)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  function refreshResultFields() {
+    var teamId = document.getElementById('f-team').value;
+    var team = TEAMS[teamId];
+    var isPlaceFinish = team && team.results_format === 'place_finish';
+    var resultType = document.getElementById('f-result-type').value;
+    var showStandardInputs = resultType === 'standard';
+    document.getElementById('f-score-fields').style.display = (showStandardInputs && !isPlaceFinish) ? '' : 'none';
+    document.getElementById('f-finish-fields').style.display = (showStandardInputs && isPlaceFinish) ? '' : 'none';
+  }
+
+  function applyLocationForHomeAway() {
+    var homeAway = document.getElementById('f-home-away').value;
+    if (homeAway === 'home') {
+      document.getElementById('f-city').value = SCHOOL.city || '';
+      document.getElementById('f-state').value = SCHOOL.state || '';
+    } else if (homeAway === 'away') {
+      var opp = opponentById(document.getElementById('f-opponent').value);
+      if (opp) {
+        document.getElementById('f-city').value = opp.city || '';
+        document.getElementById('f-state').value = opp.state || '';
+      }
+    }
+    // neutral: leave city/state exactly as typed, never auto-filled.
+  }
+
+  function refreshNeutralHost() {
+    var checked = document.getElementById('f-neutral-host').checked;
+    document.getElementById('f-opponent-two-wrap').style.display = checked ? '' : 'none';
+    document.getElementById('f-opponent-label').textContent = checked ? 'Team A' : 'Opponent';
+    var homeAway = document.getElementById('f-home-away');
+    if (checked) { homeAway.value = 'neutral'; homeAway.disabled = true; }
+    else { homeAway.disabled = false; }
+  }
+
+  // Time has to resolve to exactly one of: a specific clock time, All Day,
+  // or TBA — never a silent fourth "just left blank" state. Clicking All
+  // Day/TBA disables and clears the time field (can't type a time while
+  // one's chosen); clicking the same button again returns to "specific"
+  // and re-enables it. The input listener below is a defensive fallback
+  // for the (currently unreachable while disabled) case of typing a time.
+  function setTimeType(val) {
+    var current = document.getElementById('f-time-type').value;
+    document.getElementById('f-time-type').value = (current === val) ? 'specific' : val;
+    refreshTimeTypeButtons();
+  }
+  function refreshTimeTypeButtons() {
+    var val = document.getElementById('f-time-type').value;
+    var timeInput = document.getElementById('f-time');
+    document.querySelectorAll('.tt-btn').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.val === val);
+    });
+    timeInput.disabled = (val !== 'specific');
+    if (val !== 'specific') timeInput.value = '';
+    document.getElementById('f-time-error').style.display = 'none';
+  }
+
+  document.getElementById('f-team').addEventListener('change', function () {
+    refreshResultFields(); refreshEventGroupOptions();
+  });
+  document.getElementById('f-result-type').addEventListener('change', refreshResultFields);
+  document.getElementById('f-home-away').addEventListener('change', applyLocationForHomeAway);
+  document.getElementById('f-opponent').addEventListener('change', applyLocationForHomeAway);
+  document.getElementById('f-neutral-host').addEventListener('change', refreshNeutralHost);
+  document.getElementById('f-time').addEventListener('input', function () {
+    if (this.value) {
+      document.getElementById('f-time-type').value = 'specific';
+      refreshTimeTypeButtons();
+    }
+  });
+  document.getElementById('game-form').addEventListener('submit', function (e) {
+    var timeType = document.getElementById('f-time-type').value;
+    var timeVal = document.getElementById('f-time').value;
+    if (timeType === 'specific' && !timeVal) {
+      e.preventDefault();
+      document.getElementById('f-time-error').style.display = 'block';
+      document.getElementById('f-time').focus();
+    }
+  });
+
+  refreshResultFields();
+  refreshEventGroupOptions();
+  refreshNeutralHost();
+  refreshTimeTypeButtons();
+</script>
+{% endblock %}

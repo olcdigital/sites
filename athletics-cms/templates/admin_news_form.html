@@ -1,0 +1,391 @@
+{% extends "admin_base.html" %}
+{% set active = "news" %}
+{% block title %}{{ 'Edit Story' if article else 'New Story' }}{% endblock %}
+{% block heading %}{{ 'Edit Story' if article else 'New Story' }}{% endblock %}
+{% block subheading %}Writes directly to the articles table{% endblock %}
+{% block content %}
+
+<style>
+  .rte-wrap{border:1px solid var(--border); border-radius:8px; overflow:hidden;}
+  .rte-wrap.maximized{position:fixed; inset:16px; z-index:500; background:#fff; display:flex; flex-direction:column; box-shadow:0 8px 40px rgba(15,23,42,.35);}
+  .rte-wrap.maximized .rte-body{flex:1; max-height:none;}
+  .rte-toolbar{display:flex; gap:3px; flex-wrap:wrap; border-bottom:1px solid var(--border); padding:6px; background:#f8fafc;}
+  .rte-toolbar .rte-group{display:flex; gap:3px; padding-right:6px; margin-right:3px; border-right:1px solid var(--border);}
+  .rte-toolbar .rte-group:last-child{border-right:none;}
+  .rte-toolbar button{font-size:12px; padding:5px 8px; border:1px solid var(--border); border-radius:5px; background:#fff; cursor:pointer; min-width:26px;}
+  .rte-toolbar button:hover{background:#eef2f7;}
+  .rte-toolbar button.active{background:var(--blue-light); border-color:#bfdbfe;}
+  .rte-toolbar select{font-size:12px; padding:4px 6px; border:1px solid var(--border); border-radius:5px; background:#fff;}
+  .rte-body{min-height:220px; max-height:480px; overflow-y:auto; border:none; padding:12px; font-size:13.5px; line-height:1.65;}
+  .rte-body:focus{outline:none;}
+  .rte-body h2, .rte-body h3{margin:12px 0 6px 0;}
+  .rte-body p{margin:0 0 10px 0;}
+  .rte-source{width:100%; min-height:220px; max-height:480px; border:none; padding:12px; font-size:12.5px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; line-height:1.6; resize:vertical;}
+  .link-row{display:flex; gap:8px; margin-bottom:6px; align-items:center;}
+  .link-row input{flex:1;}
+  .link-row input[name="link_url"]{flex:2;}
+</style>
+
+{% if request.args.get('saved') %}
+<div class="callout" style="background:#ecfdf5; border-color:#a7f3d0; color:#065f46;">Saved.</div>
+{% endif %}
+{% if error %}
+<div class="callout" style="background:#fef2f2; border-color:#fecaca; color:#b91c1c;">{{ error }}</div>
+{% endif %}
+
+{% if article %}
+<div class="callout" style="display:flex; align-items:center; gap:10px;">
+  {% if article['status'] == 'published' and not article['hidden'] %}
+  <span class="badge green">Live</span><span>At <a href="/site/{{ school['slug'] }}/news/{{ article['slug'] }}" target="_blank">/news/{{ article['slug'] }}</a></span>
+  {% elif article['status'] == 'published' and article['published_at'] and article['published_at'] > now_str %}
+  <span class="badge blue">Scheduled</span><span>Goes live automatically at {{ article['published_at']|replace('T', ' ') }}.</span>
+  {% elif article['status'] == 'published' %}
+  <span class="badge blue">Held</span><span>Approved, but manually held — uncheck Hold below to make it live.</span>
+  {% elif article['status'] == 'pending_review' %}
+  <span class="badge amber">Pending Review</span><span>Waiting for someone with Publish permission to approve it.</span>
+  {% else %}
+  <span class="badge gray">Draft</span><span>Not visible on the public site yet.</span>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card" style="max-width:780px;">
+  <form method="POST" action="{{ '/admin/news/' ~ article['id'] ~ '/edit' if article else '/admin/news/new' }}" id="news-form">
+
+    <div class="form-section">
+      <div class="form-section-head"><h3>Release</h3><div class="footnote" style="margin:2px 0 0 0;">When this story actually appears on the public site. A future date holds it hidden until that moment; leave it now and use Hold instead to hide it manually until you're ready.</div></div>
+      <div class="form-row">
+        <div class="field">
+          <label>Release Date &amp; Time</label>
+          <input type="datetime-local" name="published_at" value="{{ values['published_at'] }}">
+        </div>
+        <div class="field" style="display:flex; align-items:center; padding-top:20px;">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:600; white-space:nowrap;">
+            <input type="checkbox" name="hidden" {{ 'checked' if values['hidden'] }}> Hold (keep hidden regardless of the release time)
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-head"><h3>Story</h3></div>
+      <div class="field" style="max-width:none;"><label>Title / Headline</label><input type="text" name="title" id="f-title" value="{{ values['title'] }}" required></div>
+      <div class="field" style="max-width:none;"><label>Subheadline</label><input type="text" name="subheadline" value="{{ values['subheadline'] or '' }}" placeholder="Optional secondary title"></div>
+      <div class="field"><label>Author / Byline</label><input type="text" name="author_name" value="{{ values['author_name'] }}"></div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-head"><h3>Related Links</h3><div class="footnote" style="margin:2px 0 0 0;">Show up on the story page. Pasted URLs for now — picking a page, document, or gallery from elsewhere on the site is planned.</div></div>
+      <div id="links-container">
+        {% for link in article_links %}
+        <div class="link-row">
+          <input type="text" name="link_title" value="{{ link['title'] }}" placeholder="Link title">
+          <input type="text" name="link_url" value="{{ link['url'] }}" placeholder="https://...">
+          <button type="button" class="btn secondary" onclick="this.parentElement.remove()" style="padding:6px 10px;">Remove</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn secondary" onclick="addLinkRow()">+ Add Link</button>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-head"><h3>Body</h3></div>
+      <div class="rte-wrap" id="rte-wrap">
+        <div class="rte-toolbar">
+          <div class="rte-group">
+            <button type="button" id="rte-source" title="Source">Source</button>
+          </div>
+          <div class="rte-group">
+            <button type="button" data-cmd="undo" title="Undo">&#8630;</button>
+            <button type="button" data-cmd="redo" title="Redo">&#8631;</button>
+          </div>
+          <div class="rte-group">
+            <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
+            <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
+            <button type="button" data-cmd="underline" title="Underline"><u>U</u></button>
+            <button type="button" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+            <button type="button" data-cmd="subscript" title="Subscript">X<sub>2</sub></button>
+            <button type="button" data-cmd="superscript" title="Superscript">X<sup>2</sup></button>
+            <button type="button" data-cmd="removeFormat" title="Remove Format">T<sub>x</sub></button>
+          </div>
+          <div class="rte-group">
+            <button type="button" data-cmd="insertOrderedList" title="Numbered List">1.</button>
+            <button type="button" data-cmd="insertUnorderedList" title="Bulleted List">&bull;</button>
+            <button type="button" data-cmd="outdent" title="Outdent">&#8676;</button>
+            <button type="button" data-cmd="indent" title="Indent">&#8677;</button>
+            <button type="button" data-cmd="formatBlock" data-val="BLOCKQUOTE" title="Blockquote">&ldquo;&rdquo;</button>
+          </div>
+          <div class="rte-group">
+            <button type="button" data-cmd="justifyLeft" title="Align Left">&#8676;&equiv;</button>
+            <button type="button" data-cmd="justifyCenter" title="Align Center">&equiv;</button>
+            <button type="button" data-cmd="justifyRight" title="Align Right">&equiv;&#8677;</button>
+            <button type="button" data-cmd="justifyFull" title="Justify">&#9776;</button>
+          </div>
+          <div class="rte-group">
+            <button type="button" id="rte-link" title="Insert Link">&#128279;</button>
+            <button type="button" data-cmd="unlink" title="Remove Link">&#128279;&#10060;</button>
+            <button type="button" data-cmd="insertHorizontalRule" title="Horizontal Rule">&horbar;</button>
+            <button type="button" id="rte-image" title="Insert Image">&#128247;</button>
+          </div>
+          <div class="rte-group">
+            <select id="rte-font" title="Font" onchange="if(this.value){document.execCommand('fontName', false, this.value); document.getElementById('body-editor').focus();}">
+              <option value="">Font</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="'Courier New', monospace">Courier New</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+            </select>
+            <select id="rte-size" title="Size" onchange="if(this.value){document.execCommand('fontSize', false, this.value); document.getElementById('body-editor').focus();}">
+              <option value="">Size</option>
+              <option value="2">Small</option>
+              <option value="3">Normal</option>
+              <option value="5">Large</option>
+              <option value="7">Huge</option>
+            </select>
+            <input type="color" id="rte-color" title="Text Color" value="#1c1c1c" onchange="document.execCommand('foreColor', false, this.value); document.getElementById('body-editor').focus();" style="width:28px; padding:1px; border:1px solid var(--border); border-radius:5px; background:#fff; cursor:pointer;">
+          </div>
+          <div class="rte-group">
+            <button type="button" data-cmd="formatBlock" data-val="H2" title="Heading 2">H2</button>
+            <button type="button" data-cmd="formatBlock" data-val="H3" title="Heading 3">H3</button>
+            <button type="button" data-cmd="formatBlock" data-val="P" title="Paragraph">&para;</button>
+          </div>
+          <div class="rte-group" style="margin-left:auto; border-right:none; padding-right:0;">
+            <button type="button" id="rte-maximize" title="Maximize">&#10021;</button>
+          </div>
+        </div>
+        <div id="body-editor" class="rte-body" contenteditable="true">{{ values['body']|safe }}</div>
+        <textarea id="body-source" class="rte-source" style="display:none;"></textarea>
+      </div>
+      <textarea name="body" id="body-input" style="display:none;"></textarea>
+      <div class="footnote" style="margin-top:6px;">A lightweight built-in editor (no external library, same vanilla-JS approach as the rest of this prototype), modeled on the Sidearm-style toolbar — formatting, alignment, lists, links, images by URL, fonts/colors, a raw-HTML Source view, and a Maximize toggle. Tables and video embeds aren't built yet.</div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-head"><h3>Featured Image</h3></div>
+      <div class="field"><label>Image URL</label><input type="text" name="featured_image_url" value="{{ values['featured_image_url'] or '' }}" placeholder="https://..."></div>
+      <div class="footnote" style="margin-top:-4px;">A URL for now — loading an image directly from the system (once the Media Library exists) is planned.</div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-head"><h3>Classification &amp; Placement</h3></div>
+      <div class="form-row">
+        <div class="field">
+          <label>Classification</label>
+          <select name="category">
+            {% for value, label in categories %}
+            <option value="{{ value }}" {{ 'selected' if values['category']==value }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Sport</label>
+          <select name="team_id" id="f-team">
+            <option value="">School-wide</option>
+            {% for t in teams %}
+            <option value="{{ t['id'] }}" {{ 'selected' if values['team_id']==t['id'] }}>{{ t['name'] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Season</label>
+          <input type="text" name="season" id="f-season" value="{{ values['season'] or '' }}" placeholder="e.g. 2026">
+          <div class="footnote" style="margin:4px 0 0 0;">Defaults to that sport's current schedule season — change it for a different one.</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Home Page Placement</label>
+          <select name="home_rank_choice">
+            <option value="" {{ 'selected' if values['home_rank_choice']=='' }}>Show automatically (by release date)</option>
+            {% for n in rank_choice_options %}
+            <option value="{{ n }}" {{ 'selected' if values['home_rank_choice']==(n|string) }}>Position {{ n }}</option>
+            {% endfor %}
+            <option value="off" {{ 'selected' if values['home_rank_choice']=='off' }}>Not shown on the Home Page</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Sport Page Placement</label>
+          <select name="sport_rank_choice">
+            <option value="" {{ 'selected' if values['sport_rank_choice']=='' }}>Show automatically (by release date)</option>
+            {% for n in rank_choice_options %}
+            <option value="{{ n }}" {{ 'selected' if values['sport_rank_choice']==(n|string) }}>Position {{ n }}</option>
+            {% endfor %}
+            <option value="off" {{ 'selected' if values['sport_rank_choice']=='off' }}>Not shown on the Sport Page</option>
+          </select>
+        </div>
+      </div>
+      <div class="footnote" style="margin-top:-8px;">
+        Most stories should stay on "Show automatically" — newest published first. Pick a specific Position to pin a story ahead of that order (e.g. to feature it), or "Not shown" to keep it off that page's News rotator entirely.
+        Exact ordering — including locking a story in place — is managed from
+        <a href="/admin/news/rankings">Manage Home Page Rankings</a>{% if values['team_id'] %} / <a href="/admin/news/rankings?scope=sport&team={{ values['team_id'] }}">Manage Sport Page Rankings</a>{% endif %}, either of which can override whatever's picked here.
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-head"><h3>Linked Content</h3><div class="footnote" style="margin:2px 0 0 0;">Optional. A linked game is what makes this the game's own detail card can point back to (recap or preview).</div></div>
+      <div class="form-row">
+        <div class="field">
+          <label>Linked Game</label>
+          <select name="linked_game_id" id="f-linked-game">
+            <option value="">None</option>
+          </select>
+          {% if linked_game %}<div class="footnote" style="margin:4px 0 0 0;">{{ linked_game['date'] }} {{ 'at' if linked_game['home_away']=='away' else 'vs.' }} {{ linked_game['opponent_display_name'] or linked_game['opponent_name'] }}</div>{% endif %}
+        </div>
+        <div class="field">
+          <label>Linked Gallery</label>
+          <select name="linked_gallery_id">
+            <option value="">None</option>
+            {% for g in galleries %}
+            <option value="{{ g['id'] }}" {{ 'selected' if values['linked_gallery_id']==g['id'] }}>{{ g['title'] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section" style="border-bottom:none; padding-bottom:0;">
+      <div class="form-section-head"><h3>Publishing Details</h3></div>
+      <div class="form-row">
+        <div class="field" style="max-width:none; flex:2;">
+          <label>Filename</label>
+          <input type="text" name="filename" id="f-filename" value="{{ values['filename'] }}" placeholder="auto-generated-from-title">
+          <div class="footnote" id="filename-preview" style="margin:4px 0 0 0;">/site/{{ school['slug'] }}/news/{{ values['filename'] or '…' }}</div>
+        </div>
+        <div class="field">
+          <label>Template Type</label>
+          <select name="template_type">
+            {% for value, label in template_types %}
+            <option value="{{ value }}" {{ 'selected' if values['template_type']==value }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <div class="footnote" style="margin:4px 0 0 0;">Only Standard actually renders today — more are planned.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;">
+      {% set status = article['status'] if article else 'draft' %}
+      {% if status == 'published' %}
+        <button class="btn" type="submit" name="action" value="save">Save Changes</button>
+        <button class="btn secondary" type="submit" name="action" value="unpublish">Unpublish</button>
+      {% elif status == 'pending_review' %}
+        <button class="btn secondary" type="submit" name="action" value="save_draft">Return to Draft</button>
+        {% if can_publish %}<button class="btn" type="submit" name="action" value="publish">Approve &amp; Publish</button>{% endif %}
+      {% else %}
+        <button class="btn secondary" type="submit" name="action" value="save_draft">Save Draft</button>
+        <button class="btn secondary" type="submit" name="action" value="submit_review">Submit for Review</button>
+        {% if can_publish %}<button class="btn" type="submit" name="action" value="publish">Publish</button>{% endif %}
+      {% endif %}
+      <a class="btn secondary" href="/admin/news">Cancel</a>
+    </div>
+    {% if not can_publish %}<div class="footnote" style="margin-top:8px;">Your role doesn't have <code>publish_news</code> — save as a draft or submit it for someone with that permission (Admin, and Manager by default) to review and publish.</div>{% endif %}
+  </form>
+</div>
+
+<script>
+  var GAMES_BY_TEAM = {{ games_by_team_json | safe }};
+  var TEAM_CURRENT_SEASON = {{ team_current_season_json | safe }};
+  var CURRENT_LINKED_GAME_ID = {{ (values['linked_game_id'] or '') | tojson }};
+  var filenameDirty = {{ 'true' if values['filename'] else 'false' }};
+
+  function refreshLinkedGameOptions() {
+    var teamId = document.getElementById('f-team').value;
+    var season = document.getElementById('f-season').value;
+    var sel = document.getElementById('f-linked-game');
+    var games = (GAMES_BY_TEAM[teamId] || []).filter(function (g) { return !season || g.season === season; });
+    sel.innerHTML = '<option value="">None</option>';
+    games.forEach(function (g) {
+      var opt = document.createElement('option');
+      opt.value = g.id; opt.textContent = g.label;
+      if (String(g.id) === String(CURRENT_LINKED_GAME_ID)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  document.getElementById('f-team').addEventListener('change', function () {
+    var seasonInput = document.getElementById('f-season');
+    if (!seasonInput.value && TEAM_CURRENT_SEASON[this.value]) {
+      seasonInput.value = TEAM_CURRENT_SEASON[this.value];
+    }
+    refreshLinkedGameOptions();
+  });
+  document.getElementById('f-season').addEventListener('input', refreshLinkedGameOptions);
+  refreshLinkedGameOptions();
+
+  function slugify(text) {
+    return (text || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+  function updateFilenamePreview() {
+    document.getElementById('filename-preview').textContent =
+      '/site/{{ school["slug"] }}/news/' + (document.getElementById('f-filename').value || '…');
+  }
+  document.getElementById('f-filename').addEventListener('input', function () {
+    filenameDirty = true;
+    updateFilenamePreview();
+  });
+  document.getElementById('f-title').addEventListener('input', function () {
+    if (!filenameDirty) {
+      document.getElementById('f-filename').value = slugify(this.value);
+      updateFilenamePreview();
+    }
+  });
+
+  function addLinkRow() {
+    var div = document.createElement('div');
+    div.className = 'link-row';
+    div.innerHTML = '<input type="text" name="link_title" placeholder="Link title">' +
+      '<input type="text" name="link_url" placeholder="https://...">' +
+      '<button type="button" class="btn secondary" onclick="this.parentElement.remove()" style="padding:6px 10px;">Remove</button>';
+    document.getElementById('links-container').appendChild(div);
+  }
+
+  document.querySelectorAll('.rte-toolbar button[data-cmd]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.execCommand(btn.dataset.cmd, false, btn.dataset.val || null);
+      document.getElementById('body-editor').focus();
+    });
+  });
+  document.getElementById('rte-link').addEventListener('click', function () {
+    var url = prompt('Link URL:');
+    if (url) document.execCommand('createLink', false, url);
+    document.getElementById('body-editor').focus();
+  });
+  document.getElementById('rte-image').addEventListener('click', function () {
+    var url = prompt('Image URL:');
+    if (url) document.execCommand('insertImage', false, url);
+    document.getElementById('body-editor').focus();
+  });
+
+  // Source view — a raw-HTML textarea swapped in for the contenteditable
+  // div, same "Source" toggle CKEditor-style toolbars provide, so the body
+  // this stores as HTML can be hand-edited directly when needed.
+  var sourceOn = false;
+  document.getElementById('rte-source').addEventListener('click', function () {
+    var editor = document.getElementById('body-editor');
+    var source = document.getElementById('body-source');
+    sourceOn = !sourceOn;
+    this.classList.toggle('active', sourceOn);
+    if (sourceOn) {
+      source.value = editor.innerHTML;
+      editor.style.display = 'none';
+      source.style.display = 'block';
+    } else {
+      editor.innerHTML = source.value;
+      source.style.display = 'none';
+      editor.style.display = 'block';
+    }
+  });
+
+  document.getElementById('rte-maximize').addEventListener('click', function () {
+    document.getElementById('rte-wrap').classList.toggle('maximized');
+  });
+
+  document.getElementById('news-form').addEventListener('submit', function () {
+    // If Source view is left open, its textarea (not the hidden
+    // contenteditable div) holds the current content.
+    var editor = document.getElementById('body-editor');
+    var source = document.getElementById('body-source');
+    document.getElementById('body-input').value = sourceOn ? source.value : editor.innerHTML;
+  });
+</script>
+{% endblock %}

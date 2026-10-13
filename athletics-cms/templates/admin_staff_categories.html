@@ -1,0 +1,113 @@
+{% extends "admin_base.html" %}
+{% set active = "staff" %}
+{% block title %}Staff Categories{% endblock %}
+{% block heading %}Staff Categories{% endblock %}
+{% block subheading %}Controls the sections on the public Staff Directory page and their order{% endblock %}
+{% block content %}
+<a href="/admin/staff" style="font-size:12.5px; font-weight:600;">&larr; All Staff</a>
+
+<div class="callout" style="margin-top:14px;">
+  A category for each sport is created and named automatically from Teams &amp; Rosters — those can be reordered here
+  but not renamed or deleted. Administration, Athletic Trainers, and Athletic Communications are seeded as custom
+  categories you can rename, delete, or add more alongside.
+</div>
+
+<div class="card" style="max-width:640px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <h3 style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--navy); margin:0;">Category Order ({{ categories|length }})</h3>
+  </div>
+
+  <div id="cat-list" style="display:flex; flex-direction:column; gap:6px;">
+    {% for c in categories %}
+    <div class="cat-row" data-id="{{ c['id'] }}" draggable="true"
+         style="display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 12px;">
+      <span style="color:#94a3b8; font-size:16px; line-height:1; cursor:grab;" aria-hidden="true">&#9776;</span>
+      <span style="flex:1; min-width:0;">
+        {% if c['is_sport'] %}
+        <span style="font-weight:600; font-size:13px;">{{ c['display_name'] }}</span>
+        <span class="badge gray" style="margin-left:6px;">Sport</span>
+        {% else %}
+        <form method="POST" action="/admin/staff/categories/{{ c['id'] }}/rename" style="display:flex; gap:8px; align-items:center; margin:0;">
+          <input type="text" name="name" value="{{ c['name'] }}" style="padding:6px 9px; border:1px solid var(--border); border-radius:6px; font-size:13px; width:220px;">
+          <button type="submit" class="btn secondary" style="padding:5px 10px; font-size:11.5px;">Save Name</button>
+        </form>
+        {% endif %}
+      </span>
+      <a class="btn secondary" href="/admin/staff/categories/{{ c['id'] }}/order" style="padding:5px 10px; font-size:11.5px;">Reorder Staff&hellip;</a>
+      {% if not c['is_sport'] %}
+      <form method="POST" action="/admin/staff/categories/{{ c['id'] }}/delete" onsubmit="return confirm('Delete the {{ c['name'] }} category? Staff members lose only this placement — their profile is kept.');" style="margin:0;">
+        <button type="submit" style="background:none; border:none; color:#b91c1c; font-size:12.5px; cursor:pointer; padding:0; font-family:inherit;">Delete</button>
+      </form>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="footnote">No categories yet.</p>
+    {% endfor %}
+  </div>
+
+  <button class="btn" type="button" onclick="saveOrder()" style="margin-top:14px;">Save Category Order</button>
+</div>
+
+<div class="card" style="max-width:640px;">
+  <h3 style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--navy); margin:0 0 12px 0;">Add a Custom Category</h3>
+  <form method="POST" action="/admin/staff/categories/add" style="display:flex; gap:10px; align-items:flex-end;">
+    <div class="field" style="margin-bottom:0; flex:1;">
+      <label>Name</label>
+      <input type="text" name="name" placeholder="e.g. Sports Medicine">
+    </div>
+    <button class="btn secondary" type="submit">+ Add Category</button>
+  </form>
+</div>
+
+<form id="save-form" method="POST" action="/admin/staff/categories/reorder" style="display:none;">
+  <input type="hidden" name="order_json" id="order_json">
+</form>
+
+<script>
+  // Same plain HTML5 drag-and-drop pattern as admin_news_rankings.html / admin_roster_fields.html.
+  var list = document.getElementById('cat-list');
+  var dragEl = null;
+
+  list.querySelectorAll('.cat-row').forEach(function (row) {
+    row.addEventListener('dragstart', function (e) {
+      // Don't start a drag from inside the rename text input.
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') { e.preventDefault(); return; }
+      dragEl = row;
+      row.style.opacity = '0.4';
+    });
+    row.addEventListener('dragend', function () { row.style.opacity = ''; dragEl = null; });
+  });
+
+  list.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    if (!dragEl) return;
+    var after = getRowAfter(e.clientY);
+    if (after == null) {
+      list.appendChild(dragEl);
+    } else if (after !== dragEl) {
+      list.insertBefore(dragEl, after);
+    }
+  });
+
+  function getRowAfter(y) {
+    var rows = [].slice.call(list.querySelectorAll('.cat-row')).filter(function (r) { return r !== dragEl; });
+    var closest = { offset: -Infinity, element: null };
+    rows.forEach(function (row) {
+      var box = row.getBoundingClientRect();
+      var offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        closest = { offset: offset, element: row };
+      }
+    });
+    return closest.element;
+  }
+
+  function saveOrder() {
+    var rows = list.querySelectorAll('.cat-row');
+    var order = [];
+    rows.forEach(function (row) { order.push(parseInt(row.dataset.id, 10)); });
+    document.getElementById('order_json').value = JSON.stringify(order);
+    document.getElementById('save-form').submit();
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "admin_base.html" %}
+{% set active = "rosters" %}
+{% block title %}Customize Fields — {{ team['name'] }}{% endblock %}
+{% block heading %}Customize Roster Fields{% endblock %}
+{% block subheading %}{{ team['name'] }} &mdash; {{ season }} season &middot; drag to reorder, check to show, edit to relabel{% endblock %}
+{% block content %}
+<a href="/admin/rosters?team={{ team['id'] }}&season={{ season }}" style="font-size:12.5px; font-weight:600;">&larr; Back to Roster Settings</a>
+
+<div class="callout" style="margin-top:14px;">Applies to the Table roster display. Card and Photo keep their own fixed layout. Jersey # and Name are ordinary fields here now &mdash; drag them, hide them, or relabel them like any other.</div>
+
+<div class="card" style="max-width:600px;">
+  <div id="field-list" style="display:flex; flex-direction:column; gap:6px;">
+    {% for f in fields_config %}
+    <div class="field-row" draggable="true" data-key="{{ f.key }}"
+         style="display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 12px; cursor:grab;">
+      <span style="color:#94a3b8; font-size:16px; line-height:1;" aria-hidden="true">&#9776;</span>
+      <input type="checkbox" class="f-enabled" {{ 'checked' if f.enabled }} style="width:auto;">
+      <span style="width:130px; font-size:12px; color:var(--text-dim);">{{ roster_field_labels.get(f.key, f.key) }}</span>
+      <input type="text" class="f-label" value="{{ f.label or '' }}" placeholder="{{ roster_field_labels.get(f.key, f.key) }}"
+             style="flex:1; padding:6px 9px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="footnote" style="margin-top:10px;">Header text box is optional &mdash; leave it blank to use the default name shown to its left.</div>
+  <button class="btn" type="button" onclick="saveFields()" style="margin-top:14px;">Save Field Order</button>
+  <a class="btn secondary" href="/admin/rosters?team={{ team['id'] }}&season={{ season }}" style="margin-top:14px;">Cancel</a>
+</div>
+
+<form id="save-form" method="POST" action="/admin/rosters/fields/save" style="display:none;">
+  <input type="hidden" name="team_id" value="{{ team['id'] }}">
+  <input type="hidden" name="season" value="{{ season }}">
+  <input type="hidden" name="fields_config_json" id="fields_config_json">
+</form>
+
+<script>
+  // Plain HTML5 drag-and-drop reordering — no external library, consistent
+  // with the rest of this prototype's vanilla-JS approach.
+  var list = document.getElementById('field-list');
+  var dragEl = null;
+
+  list.querySelectorAll('.field-row').forEach(function (row) {
+    row.addEventListener('dragstart', function () { dragEl = row; row.style.opacity = '0.4'; });
+    row.addEventListener('dragend', function () { row.style.opacity = ''; });
+  });
+
+  list.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    var after = getRowAfter(e.clientY);
+    if (!dragEl) return;
+    if (after == null) {
+      list.appendChild(dragEl);
+    } else {
+      list.insertBefore(dragEl, after);
+    }
+  });
+
+  function getRowAfter(y) {
+    var rows = [].slice.call(list.querySelectorAll('.field-row:not([style*="opacity: 0.4"])'));
+    var closest = { offset: -Infinity, element: null };
+    rows.forEach(function (row) {
+      if (row === dragEl) return;
+      var box = row.getBoundingClientRect();
+      var offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        closest = { offset: offset, element: row };
+      }
+    });
+    return closest.element;
+  }
+
+  function saveFields() {
+    var rows = list.querySelectorAll('.field-row');
+    var config = [];
+    rows.forEach(function (row) {
+      config.push({
+        key: row.dataset.key,
+        enabled: row.querySelector('.f-enabled').checked,
+        label: row.querySelector('.f-label').value.trim() || null,
+      });
+    });
+    document.getElementById('fields_config_json').value = JSON.stringify(config);
+    document.getElementById('save-form').submit();
+  }
+</script>
+{% endblock %}

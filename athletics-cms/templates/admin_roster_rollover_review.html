@@ -1,0 +1,55 @@
+{% extends "admin_base.html" %}
+{% set active = "rosters" %}
+{% block title %}Review Rollover{% endblock %}
+{% block heading %}Review Rollover{% endblock %}
+{% block subheading %}{{ team['name'] }} &mdash; {{ from_season }} &rarr; {{ new_season }} &middot; {{ roster|length }} player{{ 's' if roster|length != 1 }}{% endblock %}
+{% block content %}
+<div class="callout">Nothing has been saved yet. Mark each player Returning or Not Returning, then Confirm Rollover at the bottom. Not Returning doesn't change anything about the player &mdash; it just means they won't be carried into the {{ new_season }} roster. They stay in the system and on any other team's roster exactly as they are.</div>
+
+<form method="POST" action="/admin/rosters/rollover/commit">
+  <input type="hidden" name="team_id" value="{{ team['id'] }}">
+  <input type="hidden" name="new_season" value="{{ new_season }}">
+  <input type="hidden" name="row_count" value="{{ roster|length }}">
+
+  <div class="card">
+    <table>
+      <thead><tr><th>#</th><th>Player</th><th>Pos</th><th style="min-width:220px;">{{ new_season }} Roster</th></tr></thead>
+      <tbody>
+        {% for p in roster %}
+        {% set i = loop.index0 %}
+        <tr>
+          <td>{{ p['jersey_number'] }}</td>
+          <td>{{ p['first_name'] }} {{ p['last_name'] }}</td>
+          <td>{{ p['position'] }}</td>
+          <td>
+            <input type="hidden" name="row_{{ i }}_entry_id" value="{{ p['id'] }}">
+            <input type="hidden" name="row_{{ i }}_athlete_id" value="{{ p['athlete_id'] }}">
+            <input type="hidden" name="row_{{ i }}_returning" id="row-{{ i }}-returning" value="yes">
+            <div id="row-{{ i }}-toggle" style="display:flex; gap:4px;">
+              <button type="button" class="tt-btn active" data-val="yes" onclick="setRowReturning({{ i }}, 'yes')">Returning</button>
+              <button type="button" class="tt-btn" data-val="no" onclick="setRowReturning({{ i }}, 'no')">Not Returning</button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">No players on the {{ from_season }} roster to roll over.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if roster %}
+  <button class="btn" type="submit">Confirm Rollover</button>
+  <a class="btn secondary" href="/admin/rosters/rollover?team={{ team['id'] }}">&larr; Start Over</a>
+  {% endif %}
+</form>
+
+<script>
+  function setRowReturning(i, val) {
+    document.getElementById('row-' + i + '-returning').value = val;
+    document.querySelectorAll('#row-' + i + '-toggle .tt-btn').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.val === val);
+    });
+  }
+</script>
+{% endblock %}

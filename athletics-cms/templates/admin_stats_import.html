@@ -1,0 +1,78 @@
+{% extends "admin_base.html" %}
+{% set active = "schedule" %}
+{% block title %}Stats Feed{% endblock %}
+{% block heading %}Stats Feed{% endblock %}
+{% block subheading %}{{ team['name'] }} vs. {{ game['opponent_display_name'] or game['opponent_name'] }} &middot; {{ game['date'] }}{% endblock %}
+{% block content %}
+<a href="/admin/schedule/{{ game['id'] }}/edit" style="font-size:12.5px; font-weight:600;">&larr; Back to Edit Game</a>
+
+<div class="card" style="max-width:720px; margin-top:14px;">
+  <h2 style="font-size:13px; margin:0 0 8px 0;">Live stats webhook</h2>
+  <div class="footnote" style="margin-bottom:8px;">The real way this is meant to receive feeds: give this URL to a stats provider (StatBroadcast, etc.) or stat-computer software once, and it pushes live and final XML here on its own — no one has to paste anything.</div>
+  <code style="display:block; font-size:11.5px; background:#f8fafc; border:1px solid #e5e7eb; border-radius:6px; padding:8px 10px; overflow-x:auto; white-space:nowrap;">POST {{ webhook_url }}</code>
+</div>
+
+{% if pending_since %}
+<div class="callout" style="background:#fffbeb; border-color:#fde68a; color:#92400e; margin-top:14px;">
+  A final feed arrived at {{ pending_since }} over the webhook and is staged below for review — nothing has published yet.
+</div>
+{% endif %}
+
+<div class="callout" style="margin-top:14px;">
+  No provider hooked up yet? Paste or upload a feed manually below to try this out — useful for testing, or as a fallback if a stats provider can't push directly. This reads PrestoSports' &lt;fbgame&gt; football export format — see the example below. A live/in-progress export hasn't been tested yet (only a completed-game file has); if something about a live feed looks off, that's the most likely reason.
+</div>
+
+{% if error %}
+<div class="callout" style="background:#fef2f2; border-color:#fecaca; color:#b91c1c;">{{ error }}</div>
+{% endif %}
+
+<div class="card" style="max-width:720px;">
+  <form method="POST" action="/admin/schedule/{{ game['id'] }}/stats/import" enctype="multipart/form-data">
+    <div class="field">
+      <label>Upload a feed file</label>
+      <input type="file" name="feed_file" accept=".xml,text/xml">
+    </div>
+    <div class="footnote" style="margin:2px 0 12px 0;">— or —</div>
+    <div class="field" style="max-width:none;">
+      <label>Paste feed XML</label>
+      <textarea name="feed_text" rows="12" style="width:100%; font-family:monospace; font-size:12.5px;" placeholder="&lt;fbgame source=&quot;PrestoSports&quot; ...&gt;...">{{ feed_text or '' }}</textarea>
+    </div>
+    <button class="btn" type="submit" style="margin-top:12px;">Parse Feed</button>
+    <a class="btn secondary" href="/admin/schedule/{{ game['id'] }}/edit" style="margin-top:12px;">Cancel</a>
+  </form>
+</div>
+
+<div class="card" style="max-width:720px;">
+  <h2 style="font-size:13px; margin:0 0 8px 0;">Example feed shape (PrestoSports &lt;fbgame&gt;)</h2>
+  <pre style="font-size:11.5px; background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:12px; overflow-x:auto;">&lt;fbgame source="PrestoSports" version="7.8.1" generated="10/20/2025"&gt;
+  &lt;team vh="V" id="ARIZONA" name="Arizona Christian" ...&gt;
+    &lt;linescore score="14"&gt;...&lt;/linescore&gt;
+    &lt;totals totoff_yards="207" ...&gt;
+      &lt;firstdowns no="13"/&gt; &lt;penalties no="12" yds="66"/&gt;
+      &lt;conversions thirdconv="2" thirdatt="8"/&gt; &lt;fumbles lost="0"/&gt;
+      &lt;misc top="23:01"/&gt; &lt;pass att="22" comp="11" yds="102" td="1" int="1"/&gt;
+      &lt;rush att="20" yds="105" td="1"/&gt; &lt;rcv .../&gt; ...
+    &lt;/totals&gt;
+    &lt;player uni="17" name="Josh Bell" ...&gt;
+      &lt;pass .../&gt; &lt;rush .../&gt; &lt;rcv .../&gt; &lt;defense .../&gt;
+    &lt;/player&gt;
+    ...
+  &lt;/team&gt;
+  &lt;team vh="H" id="OUAZ" name="OUAZ" ...&gt;...&lt;/team&gt;
+  &lt;plays format="summary"&gt;
+    &lt;qtr number="1" text="1st"&gt;
+      &lt;play spot="ARIZONA35" down="1" togo="10" hasball="ARIZONA"
+            text="Josh Bell pass complete to Ty Cole for 5 yards..."
+            clock="14:54" playid="1,2,3"&gt;...&lt;/play&gt;
+      &lt;score V="0" H="3"&gt;&lt;/score&gt;
+      ...
+      &lt;endqtr/&gt;
+    &lt;/qtr&gt;
+    ...
+  &lt;/plays&gt;
+&lt;/fbgame&gt;</pre>
+  <div class="footnote">
+    This is the real vendor format — a school's actual PrestoSports export, not an invented shape. Nothing in the feed itself says which &lt;team&gt; is us; this importer figures that out from this game's Home/Away setting (set it on the Edit Game page if the preview says it couldn't tell), falling back to matching the opponent's name for a neutral-site game. "final" vs. "live" status is inferred from whether the feed contains a completed scoring marker — confirmed accurate against a real final-game export, not yet checked against a real in-progress one. Field position, team totals, and player stat lines are all mapped from the feed's own numbers onto this app's schema — see the mapping notes in app.py's _parse_stats_feed_xml if you need the exact field-by-field detail.
+  </div>
+</div>
+{% endblock %}

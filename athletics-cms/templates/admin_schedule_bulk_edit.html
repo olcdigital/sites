@@ -1,0 +1,55 @@
+{% extends "admin_base.html" %}
+{% set active = "schedule" %}
+{% block title %}Bulk Edit — {{ team['name'] }}{% endblock %}
+{% block heading %}Bulk Edit Schedule{% endblock %}
+{% block subheading %}{{ team['name'] }} &mdash; {{ season }} season &middot; edit every game at once, save together{% endblock %}
+{% block content %}
+<a href="/admin/schedule?team={{ team['id'] }}&season={{ season }}" style="font-size:12.5px; font-weight:600;">&larr; Back to Schedule</a>
+<div class="footnote" style="margin:6px 0 14px 0;">Covers the fields most often bulk-fixed. For opponent, tickets/livestream links, or event type changes, edit that game individually.</div>
+
+<form method="POST" action="/admin/schedule/bulk_edit/commit">
+  <input type="hidden" name="team_id" value="{{ team['id'] }}">
+  <input type="hidden" name="season" value="{{ season }}">
+  <input type="hidden" name="row_count" value="{{ games|length }}">
+
+  <div class="card" style="overflow-x:auto;">
+    <table>
+      <thead><tr>
+        <th>Opponent</th><th>Date</th><th>Time</th><th>H/A</th><th>City</th><th>State</th><th>Facility</th>
+        <th>Score For</th><th>Score Against</th>
+      </tr></thead>
+      <tbody>
+        {% for g in games %}
+        {% set i = loop.index0 %}
+        <tr>
+          <td style="white-space:nowrap;">{{ g['opponent_name'] }}
+            <input type="hidden" name="row_{{ i }}_game_id" value="{{ g['id'] }}">
+          </td>
+          <td><input type="date" name="row_{{ i }}_date" value="{{ g['date'] or '' }}" style="width:135px;"></td>
+          <td><input type="time" name="row_{{ i }}_time" value="{{ g['time'] or '' }}" style="width:100px;"></td>
+          <td>
+            <select name="row_{{ i }}_home_away">
+              {% for hv in ['home','away','neutral'] %}
+              <option value="{{ hv }}" {{ 'selected' if g['home_away']==hv }}>{{ hv|capitalize }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td><input type="text" name="row_{{ i }}_city" value="{{ g['city'] or '' }}" style="width:90px;"></td>
+          <td><input type="text" name="row_{{ i }}_state" value="{{ g['state'] or '' }}" style="width:60px;"></td>
+          <td><input type="text" name="row_{{ i }}_facility" value="{{ g['facility'] or '' }}" style="width:110px;"></td>
+          <td><input type="text" name="row_{{ i }}_score_for" value="{{ g['score_for'] if g['score_for'] is not none else '' }}" style="width:55px;"></td>
+          <td><input type="text" name="row_{{ i }}_score_against" value="{{ g['score_against'] if g['score_against'] is not none else '' }}" style="width:55px;"></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9">No games for this team/season yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if games %}
+  <button class="btn" type="submit">Save All Changes</button>
+  <a class="btn secondary" href="/admin/schedule?team={{ team['id'] }}&season={{ season }}">Cancel</a>
+  {% endif %}
+</form>
+{% endblock %}

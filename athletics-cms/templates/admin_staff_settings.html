@@ -1,0 +1,75 @@
+{% extends "admin_base.html" %}
+{% set active = "staff" %}
+{% block title %}Staff Directory Settings{% endblock %}
+{% block heading %}Staff Directory Settings{% endblock %}
+{% block subheading %}Controls the public /staff page — intro content, layout, and which fields show on each staff card{% endblock %}
+{% block content %}
+<style>
+  .link-row{display:flex; gap:8px; margin-bottom:6px; align-items:center;}
+  .link-row input{flex:1;}
+</style>
+<a href="/admin/staff" style="font-size:12.5px; font-weight:600;">&larr; All Staff</a>
+
+{% if request.args.get('saved') %}
+<div class="callout" style="background:#ecfdf5; border-color:#a7f3d0; color:#065f46; margin-top:14px;">Saved.</div>
+{% endif %}
+
+<div class="card" style="max-width:640px; margin-top:14px;">
+  <form method="POST" action="/admin/staff/settings">
+    <div class="form-section-head"><h3>Intro Content</h3><div class="footnote" style="margin:2px 0 0 0;">Shown at the top of the public Staff Directory page, above every category.</div></div>
+    <div class="field" style="max-width:none;">
+      <label>Intro Text</label>
+      <textarea name="intro_text" rows="4" style="width:100%; font-family:inherit; padding:8px 10px; border:1px solid var(--border); border-radius:6px;">{{ settings['intro_text'] or '' }}</textarea>
+    </div>
+
+    <div class="form-section" style="border-top:1px solid var(--border); margin-top:16px; padding-top:16px;">
+      <div class="form-section-head"><h3>Page Layout</h3><div class="footnote" style="margin:2px 0 0 0;">Cards is the photo-forward layout — Table is a plain, text-only listing for schools that would rather not lean on headshots.</div></div>
+      <div class="field">
+        <label>Directory Template</label>
+        <select name="directory_template">
+          <option value="cards" {{ 'selected' if settings.get('directory_template', 'cards')=='cards' }}>Cards (with photos)</option>
+          <option value="table" {{ 'selected' if settings.get('directory_template')=='table' }}>Table (text only)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-section" style="border-top:1px solid var(--border); margin-top:4px; padding-top:16px;">
+      <div class="form-section-head"><h3>Fields Shown on Each Staff Card</h3><div class="footnote" style="margin:2px 0 0 0;">Which of these show on the public directory, and their header text. Header text box is optional — leave it blank to use the default name shown to its left.</div></div>
+      {% for f in fields_config %}
+      <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border);">
+        <input type="hidden" name="field_key" value="{{ f.key }}">
+        <input type="checkbox" name="enabled_{{ f.key }}" {{ 'checked' if f.enabled }} style="width:auto;">
+        <span style="width:80px; font-size:12px; color:var(--text-dim);">{{ f.key|capitalize }}</span>
+        <input type="text" name="label_{{ f.key }}" value="{{ f.label or '' }}" placeholder="{{ f.key|capitalize }}"
+               style="flex:1; padding:6px 9px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="form-section" style="border-top:1px solid var(--border); margin-top:4px; padding-top:16px; border-bottom:none; padding-bottom:0;">
+      <div class="form-section-head"><h3>Custom Fields Shown on the Directory</h3><div class="footnote" style="margin:2px 0 0 0;">Custom fields are freeform per staff member (Alma Mater, Grad Year, Office Location, whatever a bio needs), so there's no fixed list to check off here — instead, list the exact label text below and any staff member with a custom field matching one of these labels shows it on their public card.</div></div>
+      <div id="custom-label-container">
+        {% for label in custom_field_labels %}
+        <div class="link-row">
+          <input type="text" name="directory_custom_field_label" value="{{ label }}" placeholder="e.g. Alma Mater">
+          <button type="button" class="btn secondary" onclick="this.parentElement.remove()" style="padding:6px 10px;">Remove</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn secondary" onclick="addCustomLabelRow()">+ Add Field Label</button>
+    </div>
+
+    <button class="btn" type="submit" style="margin-top:16px;">Save Settings</button>
+  </form>
+</div>
+
+<script>
+  function addCustomLabelRow() {
+    var div = document.createElement('div');
+    div.className = 'link-row';
+    div.innerHTML = '<input type="text" name="directory_custom_field_label" placeholder="e.g. Alma Mater">' +
+      '<button type="button" class="btn secondary" onclick="this.parentElement.remove()" style="padding:6px 10px;">Remove</button>';
+    document.getElementById('custom-label-container').appendChild(div);
+  }
+</script>
+{% endblock %}

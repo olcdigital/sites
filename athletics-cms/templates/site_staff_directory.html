@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Staff Directory — {{ school['name'] }}</title>
+<style>
+  :root{ --primary:{{ school['primary_color'] }}; --primary-dark:#0b3319; --accent:{{ school['secondary_color'] }}; --bg:#f9faf7; }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:#1c1c1c; font-size:14px;}
+  h1,h2,h3{text-transform:uppercase; letter-spacing:.02em; font-family:Georgia, 'Times New Roman', serif;}
+  header.site-header{background:#fff; border-bottom:3px solid var(--primary); display:flex; align-items:center; justify-content:space-between; padding:14px 32px;}
+  .site-logo{display:flex; align-items:center; gap:10px; font-weight:700; color:var(--primary); text-decoration:none;}
+  .mark{width:32px; height:32px; border-radius:50%; background:var(--primary); color:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .site-nav{display:flex; gap:22px; font-size:12.5px; font-weight:600; color:#334155; text-transform:uppercase;}
+  .site-nav a{color:#334155; text-decoration:none;}
+  .site-nav a.current{color:var(--primary);}
+  .section{padding:36px 40px; max-width:1080px; margin:0 auto;}
+  .section h1{font-size:26px; color:var(--primary); margin:0 0 6px 0;}
+  .intro{font-size:13px; color:#475569; line-height:1.7; margin:0 0 28px 0; max-width:720px;}
+  .cat-section{margin-bottom:34px;}
+  .cat-section h2{font-size:14px; color:#1c1c1c; margin:0 0 14px 0; padding-bottom:8px; border-bottom:2px solid var(--primary); text-transform:uppercase; letter-spacing:.04em; font-family:inherit;}
+  .staff-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:16px;}
+  .staff-card{background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px; display:flex; gap:12px;}
+  .staff-photo{width:64px; height:64px; border-radius:50%; object-fit:cover; background:#eef1f6; flex-shrink:0;}
+  .staff-name{font-size:14.5px; font-weight:700; margin:0 0 2px 0;}
+  .staff-title{font-size:12px; color:#64748b; margin:0 0 8px 0;}
+  .staff-meta{font-size:12px; color:#334155; line-height:1.7;}
+  .staff-meta a{color:var(--primary); text-decoration:none;}
+  .staff-social{display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;}
+  .staff-social a{font-size:10px; font-weight:700; text-transform:uppercase; background:#eef1f6; color:var(--primary); padding:3px 7px; border-radius:4px; text-decoration:none;}
+  .staff-extra{margin-top:2px;}
+  .staff-extra b{font-weight:600; color:#1c1c1c;}
+  .empty{font-size:13px; color:#64748b;}
+  table.staff-table{width:100%; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden;}
+  table.staff-table th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:#64748b; padding:9px 14px; border-bottom:1px solid #e5e7eb; background:#f8fafc;}
+  table.staff-table td{padding:10px 14px; border-bottom:1px solid #eef1f6; vertical-align:top;}
+  table.staff-table tr:last-child td{border-bottom:none;}
+  table.staff-table a{color:var(--primary); text-decoration:none;}
+  footer{padding:24px 40px; text-align:center; font-size:11.5px; color:#94a3b8;}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a class="site-logo" href="/site/{{ school['slug'] }}"><div class="mark">{{ school['mascot'][0] if school['mascot'] else school['name'][0] }}</div>{{ school['name'] }} {{ school['mascot'] }}</a>
+  <nav class="site-nav">
+    <a href="/site/{{ school['slug'] }}">Home</a>
+    <a href="/site/{{ school['slug'] }}/teams/mens-soccer">Teams</a>
+    <a href="/site/{{ school['slug'] }}/news">News</a>
+    <a href="/site/{{ school['slug'] }}/staff" class="current">Staff</a>
+  </nav>
+</header>
+
+<div class="section">
+  <h1>Staff Directory</h1>
+  {% if intro_text %}<p class="intro">{{ intro_text }}</p>{% endif %}
+
+  {% set show = namespace(name=true, title=true, email=true, phone=true, social=true) %}
+  {% for field in fields_config %}
+    {% if field.key == 'name' %}{% set show.name = field.enabled %}{% endif %}
+    {% if field.key == 'title' %}{% set show.title = field.enabled %}{% endif %}
+    {% if field.key == 'email' %}{% set show.email = field.enabled %}{% endif %}
+    {% if field.key == 'phone' %}{% set show.phone = field.enabled %}{% endif %}
+    {% if field.key == 'social' %}{% set show.social = field.enabled %}{% endif %}
+  {% endfor %}
+
+  {% for section in sections %}
+  <div class="cat-section">
+    <h2>{{ section.name }}</h2>
+
+    {% if directory_template == 'table' %}
+    <div style="overflow-x:auto;">
+      <table class="staff-table">
+        <thead><tr>
+          {% if show.name %}<th>Name</th>{% endif %}
+          {% if show.title %}<th>Title</th>{% endif %}
+          {% if show.email %}<th>Email</th>{% endif %}
+          {% if show.phone %}<th>Phone</th>{% endif %}
+          {% if show.social %}<th>Social</th>{% endif %}
+          {% for label in custom_field_labels %}<th>{{ label }}</th>{% endfor %}
+        </tr></thead>
+        <tbody>
+          {% for m in section.members %}
+          <tr>
+            {% if show.name %}<td>{{ m['first_name'] }} {{ m['last_name'] }}</td>{% endif %}
+            {% if show.title %}<td>{{ m['title'] or '' }}</td>{% endif %}
+            {% if show.email %}<td>{% if m['email'] %}<a href="mailto:{{ m['email'] }}">{{ m['email'] }}</a>{% endif %}</td>{% endif %}
+            {% if show.phone %}<td>{{ m['phone'] or '' }}</td>{% endif %}
+            {% if show.social %}
+            <td>
+              {% for link in social_by_staff.get(m['id'], []) %}{{ SOCIAL_PLATFORM_LABELS.get(link['platform'], link['platform']) }}{% if not loop.last %}, {% endif %}{% endfor %}
+            </td>
+            {% endif %}
+            {% for label in custom_field_labels %}
+            <td>
+              {% for cf in custom_fields_by_staff.get(m['id'], []) %}{% if cf['label']|lower == label|lower %}{{ cf['value'] }}{% endif %}{% endfor %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <div class="staff-grid">
+      {% for m in section.members %}
+      <div class="staff-card">
+        {% if m['photo_url'] %}<img class="staff-photo" src="{{ m['photo_url'] }}" alt="">
+        {% else %}<div class="staff-photo"></div>{% endif %}
+        <div style="min-width:0;">
+          {% if show.name %}<div class="staff-name">{{ m['first_name'] }} {{ m['last_name'] }}</div>{% endif %}
+          {% if show.title and m['title'] %}<div class="staff-title">{{ m['title'] }}</div>{% endif %}
+          <div class="staff-meta">
+            {% if show.email and m['email'] %}<div><a href="mailto:{{ m['email'] }}">{{ m['email'] }}</a></div>{% endif %}
+            {% if show.phone and m['phone'] %}<div>{{ m['phone'] }}</div>{% endif %}
+            {% for cf in custom_fields_by_staff.get(m['id'], []) %}
+            <div class="staff-extra"><b>{{ cf['label'] }}:</b> {{ cf['value'] }}</div>
+            {% endfor %}
+          </div>
+          {% if show.social and social_by_staff.get(m['id']) %}
+          <div class="staff-social">
+            {% for link in social_by_staff.get(m['id']) %}
+            <a href="{{ link['handle_or_url'] }}" target="_blank" rel="noopener">{{ SOCIAL_PLATFORM_LABELS.get(link['platform'], link['platform']) }}</a>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="empty">No staff to show yet.</p>
+  {% endfor %}
+</div>
+
+<footer>{{ school['name'] }} Athletics</footer>
+</body>
+</html>

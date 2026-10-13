@@ -1,0 +1,110 @@
+{% extends "admin_base.html" %}
+{% set active = "staff" %}
+{% block title %}New Staff Member{% endblock %}
+{% block heading %}New Staff Member{% endblock %}
+{% block subheading %}Adds a school-wide staff_members row — attach them to a team's roster afterward from Coaches &amp; Staff{% endblock %}
+{% block content %}
+<style>
+  .link-row{display:flex; gap:8px; margin-bottom:6px; align-items:center;}
+  .link-row input{flex:1;}
+  .cat-check{display:flex; align-items:center; gap:7px; font-size:13px; padding:4px 0;}
+  .cat-check input{width:auto;}
+</style>
+<a href="/admin/staff" style="font-size:12.5px; font-weight:600;">&larr; All Staff</a>
+
+<div class="card" style="max-width:720px; margin-top:14px;">
+  <form method="POST" action="/admin/staff/new">
+    <div class="form-section-head"><h3>Bio</h3></div>
+    <div class="form-row">
+      <div class="field"><label>First Name</label><input type="text" name="first_name" required></div>
+      <div class="field"><label>Last Name</label><input type="text" name="last_name" required></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Title</label><input type="text" name="title" placeholder="e.g. Assistant Athletic Trainer"></div>
+      <div class="field"><label>Photo URL</label><input type="text" name="photo_url"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Email</label><input type="text" name="email"></div>
+      <div class="field"><label>Phone</label><input type="text" name="phone"></div>
+    </div>
+    <div class="field" style="max-width:none;">
+      <label>Bio</label>
+      <textarea name="bio_text" rows="4" style="width:100%; font-family:inherit; padding:8px 10px; border:1px solid var(--border); border-radius:6px;"></textarea>
+    </div>
+    <div class="cat-check">
+      <input type="checkbox" name="hidden_from_directory" id="hidden_from_directory">
+      <label for="hidden_from_directory" style="margin:0; font-weight:500;">Hide from the public Staff Directory (still attachable to a roster — e.g. a GA or student assistant)</label>
+    </div>
+
+    <div class="form-section" style="border-top:1px solid var(--border); margin-top:16px; padding-top:16px;">
+      <div class="form-section-head"><h3>Staff Categories</h3><div class="footnote" style="margin:2px 0 0 0;">Controls where they show up on the public Staff Directory only — not the same as being on a roster. A person can belong to more than one.</div></div>
+      {% for c in categories %}
+      <div class="cat-check">
+        <input type="checkbox" name="category_ids" value="{{ c['id'] }}" id="cat-{{ c['id'] }}" {{ 'checked' if c['id'] in selected_category_ids }}>
+        <label for="cat-{{ c['id'] }}" style="margin:0; font-weight:500;">{{ c['display_name'] }}{% if c['is_sport'] %} <span class="footnote" style="display:inline;">(sport)</span>{% endif %}</label>
+      </div>
+      {% else %}
+      <p class="footnote">No categories yet — <a href="/admin/staff/categories">create one</a>.</p>
+      {% endfor %}
+    </div>
+
+    <div class="form-section" style="border-top:1px solid var(--border); margin-top:4px; padding-top:16px;">
+      <div class="form-section-head"><h3>Custom Fields</h3><div class="footnote" style="margin:2px 0 0 0;">Anything else worth showing on their bio — office location, credentials, alma mater, whatever this role needs. Any of these can also be opted into the public Staff Directory by label, from <a href="/admin/staff/settings">Directory Settings</a>.</div></div>
+      <div id="fields-container">
+        {% for cf in custom_fields %}
+        <div class="link-row">
+          <input type="text" name="custom_field_label" value="{{ cf['label'] }}" placeholder="Label">
+          <input type="text" name="custom_field_value" value="{{ cf['value'] }}" placeholder="Value">
+          <button type="button" class="btn secondary" onclick="this.parentElement.remove()" style="padding:6px 10px;">Remove</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn secondary" onclick="addFieldRow()">+ Add Custom Field</button>
+    </div>
+
+    <div class="form-section" style="border-top:1px solid var(--border); margin-top:4px; padding-top:16px; border-bottom:none; padding-bottom:0;">
+      <div class="form-section-head"><h3>Social Links</h3><div class="footnote" style="margin:2px 0 0 0;">Shown on the public Staff Directory when the Social field is enabled there.</div></div>
+      <div id="social-container">
+        {% for link in social_links %}
+        <div class="link-row">
+          <select name="social_platform" style="flex:0 0 140px;">
+            {% for key, label in social_platforms %}
+            <option value="{{ key }}" {{ 'selected' if link['platform']==key }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <input type="text" name="social_handle_or_url" value="{{ link['handle_or_url'] }}" placeholder="@handle or full link">
+          <button type="button" class="btn secondary" onclick="this.parentElement.remove()" style="padding:6px 10px;">Remove</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn secondary" onclick="addSocialRow()">+ Add Social Link</button>
+    </div>
+
+    <button class="btn" type="submit" style="margin-top:18px;">Create Staff Member</button>
+  </form>
+</div>
+
+<script>
+  function addFieldRow() {
+    var div = document.createElement('div');
+    div.className = 'link-row';
+    div.innerHTML = '<input type="text" name="custom_field_label" placeholder="Label">' +
+      '<input type="text" name="custom_field_value" placeholder="Value">' +
+      '<button type="button" class="btn secondary" onclick="this.parentElement.remove()" style="padding:6px 10px;">Remove</button>';
+    document.getElementById('fields-container').appendChild(div);
+  }
+
+  var socialPlatformOptions = {{ social_platforms|tojson }};
+  function addSocialRow() {
+    var div = document.createElement('div');
+    div.className = 'link-row';
+    var options = socialPlatformOptions.map(function (p) {
+      return '<option value="' + p[0] + '">' + p[1] + '</option>';
+    }).join('');
+    div.innerHTML = '<select name="social_platform" style="flex:0 0 140px;">' + options + '</select>' +
+      '<input type="text" name="social_handle_or_url" placeholder="@handle or full link">' +
+      '<button type="button" class="btn secondary" onclick="this.parentElement.remove()" style="padding:6px 10px;">Remove</button>';
+    document.getElementById('social-container').appendChild(div);
+  }
+</script>
+{% endblock %}

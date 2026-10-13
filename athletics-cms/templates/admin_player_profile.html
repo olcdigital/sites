@@ -1,0 +1,122 @@
+{% extends "admin_base.html" %}
+{% set active = "players" %}
+{% block title %}{{ athlete['first_name'] }} {{ athlete['last_name'] }}{% endblock %}
+{% block heading %}{{ athlete['first_name'] }} {{ athlete['last_name'] }}{% endblock %}
+{% block subheading %}Player profile — one athletes row, editable from here or from any of their rosters{% endblock %}
+{% block content %}
+<a href="/admin/players" style="font-size:12.5px; font-weight:600;">&larr; All Players</a>
+
+<div class="card" style="max-width:720px; margin-top:14px;">
+  <div class="form-section-head"><h3>Bio</h3><div class="footnote" style="margin:2px 0 0 0;">Editing here updates this player everywhere they appear &mdash; every team, every season.</div></div>
+  <form method="POST" action="/admin/players/{{ athlete['id'] }}/edit">
+    <div class="form-row">
+      <div class="field"><label>First Name</label><input type="text" name="first_name" value="{{ athlete['first_name'] }}" required></div>
+      <div class="field"><label>Last Name</label><input type="text" name="last_name" value="{{ athlete['last_name'] }}" required></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Hometown</label><input type="text" name="hometown" value="{{ athlete['hometown'] or '' }}"></div>
+      <div class="field"><label>High School</label><input type="text" name="high_school" value="{{ athlete['high_school'] or '' }}"></div>
+      <div class="field"><label>Previous School(s)</label><input type="text" name="previous_school" value="{{ athlete['previous_school'] or '' }}" placeholder="separate multiple with a semicolon"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Headshot URL</label><input type="text" name="headshot_url" value="{{ athlete['headshot_url'] or '' }}"></div>
+      <div class="field"><label>NIL Shop Link (optional)</label><input type="text" name="nil_shop_url" value="{{ athlete['nil_shop_url'] or '' }}" placeholder="link to their personal NIL shop, if any"></div>
+    </div>
+    <div class="field" style="max-width:none;">
+      <label>Master Bio</label>
+      <textarea name="bio_text" rows="3" style="width:100%; font-family:inherit; padding:8px 10px; border:1px solid var(--border); border-radius:6px;">{{ athlete['bio_text'] or '' }}</textarea>
+      <div class="footnote" style="margin:4px 0 0 0;">General facts shared across every sport this player is on. Each roster spot below can also carry its own sport/season-specific bio — edit that from its own Edit link, for a multi-sport athlete whose story differs by team.</div>
+    </div>
+
+    <div class="form-section" style="border-top:1px solid var(--border); margin-top:4px; padding-top:16px; border-bottom:none; padding-bottom:0;">
+      <div class="form-section-head"><h3>Miscellaneous</h3><div class="footnote" style="margin:2px 0 0 0;">Optional extras that don't fit anywhere else above.</div></div>
+      <div class="form-row">
+        <div class="field"><label>Nickname</label><input type="text" name="nickname" value="{{ athlete['nickname'] or '' }}"></div>
+        <div class="field"><label>Name Pronunciation</label><input type="text" name="pronunciation" value="{{ athlete['pronunciation'] or '' }}" placeholder="e.g. cass-TEE-oh"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Academic Major</label><input type="text" name="academic_major" value="{{ athlete['academic_major'] or '' }}"></div>
+        <div class="field"><label>Birthdate</label><input type="text" name="birthdate" value="{{ athlete['birthdate'] or '' }}" placeholder="e.g. 2006-04-12"></div>
+      </div>
+    </div>
+
+    <button class="btn" type="submit" style="margin-top:16px;">Save Changes</button>
+  </form>
+</div>
+
+<div class="card" style="max-width:720px;">
+  <h2 style="font-size:14px; margin-top:0;">Social Links</h2>
+  <div class="footnote" style="margin:0 0 12px 0;">Shown on this player's public roster listing where the Card or Photo display is used.</div>
+  {% if social_links %}
+  <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+    {% for link in social_links %}
+    <div style="display:flex; align-items:center; gap:10px; font-size:13px;">
+      <span class="badge blue" style="min-width:80px; text-align:center;">{{ SOCIAL_PLATFORM_LABELS.get(link['platform'], link['platform']) }}</span>
+      <span style="flex:1;">{{ link['handle_or_url'] }}</span>
+      <form method="POST" action="/admin/players/{{ athlete['id'] }}/social/{{ link['id'] }}/delete" onsubmit="return confirm('Remove this social link?');">
+        <button type="submit" style="background:none; border:none; color:#b91c1c; font-size:12.5px; cursor:pointer; padding:0; font-family:inherit;">Remove</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <form method="POST" action="/admin/players/{{ athlete['id'] }}/social/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+    <div class="field" style="margin-bottom:0; max-width:180px;">
+      <label>Platform</label>
+      <select name="platform">
+        {% for key, label in social_platforms %}
+        <option value="{{ key }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:0; flex:1; min-width:200px;">
+      <label>Handle or URL</label>
+      <input type="text" name="handle_or_url" placeholder="@handle or full link">
+    </div>
+    <button class="btn secondary" type="submit">+ Add Link</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="table-toolbar">
+    <h2 style="font-size:14px; margin:0;">Roster History</h2>
+    <select onchange="if(this.value) window.location = '/admin/rosters/new?team=' + this.value + '&athlete_id={{ athlete['id'] }}&next=/admin/players/{{ athlete['id'] }}';">
+      <option value="" selected>+ Add to a Roster&hellip;</option>
+      {% for t in teams %}
+      <option value="{{ t['id'] }}">{{ t['name'] }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <table>
+    <thead><tr><th>Season</th><th>Team</th><th>#</th><th>Pos</th><th>Cl</th><th></th></tr></thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td>{{ e['season'] }}</td>
+        <td>{{ e['team_name'] }}</td>
+        <td>{{ e['jersey_number'] }}</td>
+        <td>{{ e['position'] }}</td>
+        <td>{{ e['class_year'] }}</td>
+        <td style="display:flex; gap:10px;">
+          <a href="/admin/rosters/{{ e['id'] }}/edit">Edit</a>
+          <form method="POST" action="/admin/rosters/{{ e['id'] }}/remove" onsubmit="return confirm('Remove {{ athlete['first_name'] }} {{ athlete['last_name'] }} from {{ e['team_name'] }} ({{ e['season'] }})? Their player profile is kept.');">
+            <input type="hidden" name="next" value="/admin/players/{{ athlete['id'] }}">
+            <button type="submit" style="background:none; border:none; color:#b91c1c; font-size:13px; cursor:pointer; padding:0; font-family:inherit;">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">Not currently on any roster.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card" style="border-color:#fecaca;">
+  <h2 style="font-size:14px; margin-top:0; color:#b91c1c;">Danger Zone</h2>
+  <p class="footnote" style="margin:0 0 10px 0;">Permanently deletes this player's entire record, including every roster assignment above (across every team and season) &mdash; not just the one team you're viewing. This cannot be undone.</p>
+  <form method="POST" action="/admin/players/{{ athlete['id'] }}/delete" onsubmit="return confirm('Permanently delete {{ athlete['first_name'] }} {{ athlete['last_name'] }}? This removes their entire player record AND all {{ entries|length }} roster assignment(s) shown above. This cannot be undone.');">
+    <button class="btn danger" type="submit">Delete Player Permanently</button>
+  </form>
+</div>
+{% endblock %}
